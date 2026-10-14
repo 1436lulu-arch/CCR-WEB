@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CCR">
+<meta name="theme-color" content="#0b0f14" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<title>CCR – Calculs gaz</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root {
+  color-scheme: light;
+  --bg1:#eef2f6; --bg2:#e3e9f0; --nav:#ffffff; --card:rgba(255,255,255,.92); --card-b:rgba(0,0,0,.09);
+  --text:#111827; --label:#5b6572; --tab:#6b7280; --tab-on:#0b0f14;
+  --accent:#007b8f; --seafoam:#00805f; --violet:#7a3fc2; --result:#8c7a00; --warn:#b45309; --danger:#c62828;
+  --tile:rgba(0,0,0,.05); --input-b:rgba(0,0,0,.3); --step:rgba(0,0,0,.07); --cellv:#8a5a1a;
+  --c-param:#b45309; --c-temps:#9a6b2f; --c-vol:#2e7d32; --c-dist:#7a8a00;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  color-scheme: dark;
+  --bg1:#0b0f14; --bg2:#161d27; --nav:#0b0f14; --card:rgba(30,41,59,.6); --card-b:rgba(255,255,255,.06);
+  --text:#ffffff; --label:#9aa4ae; --tab:rgba(150,150,150,.75); --tab-on:#ffffff;
+  --accent:#00e5ff; --seafoam:#00ffc8; --violet:#bb86fc; --result:#f4ff06; --warn:#ffa500; --danger:#ff4444;
+  --tile:rgba(0,0,0,.22); --input-b:rgba(255,255,255,.3); --step:rgba(255,255,255,.09); --cellv:#ffe4c4;
+  --c-param:#ffa500; --c-temps:#ffd296; --c-vol:#4caf50; --c-dist:#cdd63a;
+}
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg1:#0b0f14; --bg2:#161d27; --nav:#0b0f14; --card:rgba(30,41,59,.6); --card-b:rgba(255,255,255,.06);
+  --text:#ffffff; --label:#9aa4ae; --tab:rgba(150,150,150,.75); --tab-on:#ffffff;
+  --accent:#00e5ff; --seafoam:#00ffc8; --violet:#bb86fc; --result:#f4ff06; --warn:#ffa500; --danger:#ff4444;
+  --tile:rgba(0,0,0,.22); --input-b:rgba(255,255,255,.3); --step:rgba(255,255,255,.09); --cellv:#ffe4c4;
+  --c-param:#ffa500; --c-temps:#ffd296; --c-vol:#4caf50; --c-dist:#cdd63a;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); -webkit-text-size-adjust: 100%; }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  margin: 0; min-height: 100vh;
+  background-color: var(--bg2);
+  background-image: linear-gradient(var(--bg1), var(--bg2));
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.nav {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  display: flex; background: var(--nav); height: 52px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.25); border-bottom: 1px solid var(--card-b);
+}
+.nav-in { position: relative; display: flex; width: 100%; max-width: 560px; margin: 0 auto; }
+.nav button {
+  flex: 1; height: 52px; border: 0; background: none; color: var(--tab); cursor: pointer;
+  font: 500 12px/1 inherit; font-family: inherit; letter-spacing: 1.2px; text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
+}
+.nav button[aria-selected="true"] { color: var(--tab-on); font-weight: 900; }
+.ind { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(100% / 6); padding: 0 12px; transition: transform .25s ease; pointer-events: none; }
+.ind::after { content: ""; display: block; height: 100%; background: var(--accent); border-radius: 4px 4px 0 0; }
+main { max-width: 560px; margin: 0 auto; padding: 16px; }
+.page { display: none; flex-direction: column; gap: 20px; }
+.page.on { display: flex; }
+.ptitle { display: flex; align-items: center; gap: 8px; font-size: 26px; font-weight: 700; }
+.badge { width: 32px; height: 32px; border: 2px solid #888; border-radius: 6px; background: #000; color: #f00; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.card { background: var(--card); border: 1px solid var(--card-b); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.ctitle { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--label); }
+.ctitle i { width: 4px; height: 16px; border-radius: 2px; background: var(--ac, #888); flex: none; }
+.dyn { display: flex; flex-direction: column; gap: 12px; }
+.row2 { display: flex; gap: 8px; }
+.row2 > .nf { flex: 1; }
+.rowc { display: flex; justify-content: center; }
+.nf { display: flex; flex-direction: column; align-items: center; }
+.nf > label { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 4px; white-space: nowrap; }
+.nfrow { display: flex; align-items: center; gap: 2px; }
+.nfrow input {
+  width: 72px; height: 44px; padding: 0 8px; text-align: center;
+  font: 700 20px/1 inherit; font-family: inherit; color: var(--fc, var(--text));
+  background: transparent; border: 1.5px solid var(--input-b); border-radius: 10px; outline: none;
+}
+.nfrow input:focus { border-color: var(--fc, var(--text)); }
+.nfrow input.err { border-color: var(--danger); }
+.step { width: 32px; height: 44px; border: 0; border-radius: 10px; background: var(--step); color: var(--text); font-size: 22px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.step:active { opacity: .6; }
+.btn { width: 100%; height: 44px; border-radius: 12px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font: 600 15px/1 inherit; font-family: inherit; cursor: pointer; }
+.btn:disabled { opacity: .35; cursor: default; }
+.btn:not(:disabled):active { background: var(--step); }
+.alert { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: 700; color: var(--c); background: color-mix(in srgb, var(--c) 15%, transparent); }
+.alert svg { flex: none; }
+.rbox { display: flex; flex-direction: column; align-items: center; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--c) 6%, transparent); border: 1px solid color-mix(in srgb, var(--c) 14%, transparent); }
+.rbox .rbl { font-size: 9px; font-weight: 700; color: color-mix(in srgb, var(--c) 70%, transparent); text-align: center; }
+.rbox .rbv { font-size: clamp(22px, 7.4vw, 28px); font-weight: 900; letter-spacing: 1px; color: var(--c); white-space: nowrap; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rc { background: var(--tile); border-radius: 12px; padding: 8px 10px; min-width: 0; }
+.rl { font-size: 14px; font-weight: 600; letter-spacing: .5px; opacity: .88; }
+.rv { display: flex; align-items: center; gap: 4px; font-size: 18px; font-weight: 700; white-space: nowrap; }
+.ru { font-size: 12px; font-weight: 400; color: var(--label); margin-left: -1px; }
+.rr { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.rrl { font-size: 16px; font-weight: 600; opacity: .88; }
+.rrv { display: flex; align-items: center; gap: 6px; font-size: 20px; font-weight: 700; }
+.tiles { display: flex; gap: 12px; }
+.tile { flex: 1; background: var(--tile); border-radius: 12px; padding: 8px; text-align: center; }
+.tile .t1 { font-size: 9px; color: var(--label); }
+.tile .t2 { font-size: 18px; font-weight: 700; color: var(--cellv); }
+.tile .t3 { font-size: 9px; font-weight: 700; color: var(--accent); opacity: .85; }
+.hint { font-size: 14px; color: var(--label); }
+</style>
+</head>
+<body>
+<nav class="nav" aria-label="Pages"><div class="nav-in" id="tabs"><div class="ind" id="ind"></div></div></nav>
+<main id="pages"></main>
+
+<script>
+(function () {
+'use strict';
+
+/* ───────────── Stockage local (par appareil) ───────────── */
+var KEY = 'ccr1:';
+function lsGet(k) { try { return localStorage.getItem(KEY + k) || ''; } catch (e) { return ''; } }
+function lsSet(k, v) { try { localStorage.setItem(KEY + k, v); } catch (e) {} }
+var NAMES = ['prof','dilO2','dilHe','boO2','boHe','trO2','trHe','swt','decoO2','injO2','injHe','tgO2','tgHe','c1','c2','heli',
+             'sProf','sConso','sTpsp','sCs','sTpsr','sVol','sDist','sPb'];
+var S = {};
+NAMES.forEach(function (n) { S[n] = lsGet(n); });
+
+//<calc>
+/* ───────────── Outils de calcul ───────────── */
+function dec(s) {
+  if (s == null) return null;
+  var t = String(s).replace(',', '.').trim();
+  if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
+  var n = Number(t);
+  return isFinite(n) ? n : null;
+}
+function f(x, d) { return x.toFixed(d).replace('.', ','); }
+function fo(x, d) { return (x == null || isNaN(x)) ? '--' : f(x, d); }
+function clean(x) { return x % 1 === 0 ? String(Math.trunc(x)) : f(x, 1); }
+function nz(x) { return x == null ? 0 : x; }
+var RHO = { o2: 1.359, n2: 1.189, he: 0.170 };   // g/L à 15 °C (CE/ISO)
+var SETPOINT = 1.3;
+var AUTO_MIN_DEPTH = 31.6, BAILOUT_MIN_DEPTH = 37.6;
+var HE_DEFAULT_PCT = 98;
+
+var LIM = {
+  ppo2: function (v) { return (v > 1.15 || v < 0.48) ? 'danger' : (v > 1.1 || v < 0.5) ? 'warn' : 'ok'; },
+  pea: function (v) { return v > 35 ? 'danger' : v > 31 ? 'warn' : 'ok'; },
+  ppo2Bailout: function (v) { return (v > 1.6 || v < 0.48) ? 'danger' : v < 0.5 ? 'warn' : 'ok'; },
+  cdiPpn2: function (v) { return v > 0.5 ? 'danger' : 'ok'; },
+  cdiPercent: function (v) { return v > 20 ? 'danger' : v > 10 ? 'warn' : 'ok'; },
+  densite: function (v) { return v > 6.8 ? 'danger' : v > 6.3 ? 'warn' : 'ok'; }
+};
+function st(x, fn) { return x == null ? 'ok' : fn(x); }
+
+function build(o2, he, n2, pabs) {
+  var ppn2 = n2 * pabs / 100;
+  return { o2: o2, he: he, n2: n2, ppo2: o2 * pabs / 100, ppn2: ppn2,
+           pea: ((ppn2 / 0.79) - 1) * 10,
+           densite: (o2 * RHO.o2 + he * RHO.he + n2 * RHO.n2) / 100 * pabs };
+}
+function autoDil(pabs) {
+  var o2 = 100 * (1.0 / pabs), n2 = 100 * (3.16 / pabs);
+  return build(o2, 100 - o2 - n2, n2, pabs);
+}
+function mix(o2, he, pabs) {
+  if (!(o2 >= 0 && o2 <= 100) || !(he >= 0 && he <= 100) || o2 + he > 100) return null;
+  return build(o2, he, 100 - o2 - he, pabs);
+}
+function loopMix(dil, pabs) {
+  var o2 = SETPOINT / pabs * 100;
+  if (o2 > 100) return null;
+  var n2 = dil.n2 > 0 ? (100 - o2) / (1 + dil.he / dil.n2) : 0;
+  return build(o2, 100 - o2 - n2, n2, pabs);
+}
+
+/* Travel */
+function proposeTravel(o2bopPct, n2bopPct) {
+  var o2bop = o2bopPct / 100, n2bop = n2bopPct / 100;
+  if (o2bop <= 0) return null;
+  var pabstrav = 0.8 / o2bop;
+  if (pabstrav <= 1.0) return null;
+  var o2trav = 1.6 / pabstrav, n2trav;
+  if (o2trav > 0.49) n2trav = 1.0 - o2trav;
+  else if (((n2bop * pabstrav + 0.5) / pabstrav) > 0.49 && o2trav > 0.45) n2trav = 1.0 - o2trav;
+  else n2trav = Math.min(1.05 * n2bop, ((n2bop * pabstrav) + 0.5) / pabstrav);
+  var heRaw = 1.0 - o2trav - n2trav;
+  var hetrav = heRaw < 0.20 ? 0 : heRaw;
+  function cdiPct(n2) { return n2bopPct > 0 ? ((n2 * 100 / n2bopPct) - 1) * 100 : null; }
+  if (hetrav === 0) {
+    var o2nx = (1.0 - n2trav) < 0.49 ? 0.5 : (1.0 - n2trav);
+    var n2nx = 1 - o2nx, pabsnx = 1.6 / o2nx;
+    return { isNx: true, o2: o2nx, he: 0, n2: n2nx, profondeur: (pabsnx - 1) * 10,
+             densite: (o2nx * RHO.o2 + n2nx * RHO.n2) * pabsnx,
+             cdi: n2nx * pabsnx - n2bop * pabsnx, ppo2Bo: o2bop * pabsnx, cdiPercent: cdiPct(n2nx) };
+  }
+  return { isNx: false, o2: o2trav, he: hetrav, n2: n2trav, profondeur: (pabstrav - 1) * 10,
+           densite: (o2trav * RHO.o2 + hetrav * RHO.he + n2trav * RHO.n2) * pabstrav,
+           cdi: n2trav * pabstrav - n2bop * pabstrav, ppo2Bo: o2bop * pabstrav, cdiPercent: cdiPct(n2trav) };
+}
+function travelAt(pabs, o2, he, o2bopRatio, n2bopRatio) {
+  var n2 = 100 - o2 - he, ppn2 = n2 / 100 * pabs, hasBo = o2bopRatio > 0;
+  return { depth: (pabs - 1) * 10, ppn2: ppn2, pea: ((ppn2 / 0.79) - 1) * 10,
+           ppo2Bo: hasBo ? o2bopRatio * pabs : null, ppo2Travel: o2 / 100 * pabs,
+           densite: (o2 * RHO.o2 + he * RHO.he + n2 * RHO.n2) / 100 * pabs,
+           cdi: hasBo ? ppn2 - n2bopRatio * pabs : null };
+}
+function boSwitchStatus(v) { return v < 0.5 ? 'danger' : v > 1.6 ? 'warn' : 'ok'; }
+function travelPpo2Status(v) { return v > 1.7 ? 'danger' : v > 1.61 ? 'warn' : 'ok'; }
+
+/* Déco */
+function proposeDeco(o2Pct, hePct) {
+  if (o2Pct <= 0) return null;
+  var n2tr = (100 - o2Pct - hePct) / 100;
+  if (n2tr < 0) return null;
+  var pabstrav = 0.8 / (o2Pct / 100);
+  var oxygen = 1.6 / pabstrav >= 0.9;
+  var n2deco = oxygen ? 0 : Math.min(1.15 * n2tr, ((n2tr * pabstrav) + 0.5) / pabstrav);
+  var o2deco = oxygen ? 1 : 1 - n2deco;
+  var pabsdeco = oxygen ? 1.6 : 1.6 / o2deco;
+  return { o2: o2deco, n2: n2deco, profondeur: (pabsdeco - 1) * 10,
+           cdi: n2deco * pabsdeco - n2tr * pabsdeco,
+           cdiPercent: n2tr > 0 ? (n2deco / n2tr - 1) * 100 : null,
+           ppo2Trav: pabsdeco * o2Pct / 100 };
+}
+function decoTravStatus(v) { return v < 0.3 ? 'danger' : v < 0.5 ? 'warn' : 'ok'; }
+
+/* Mix Gaz */
+var AIR = { o2: 0.2095, he: 0, n2: 1 - 0.2095 };
+function gas(o, h) { return { o2: o, he: h, n2: 1 - o - h }; }
+function gValid(g) { return g.o2 >= 0 && g.he >= 0 && g.o2 + g.he <= 1 + 1e-9; }
+function computeTarget(t, a, s) {
+  var den = s.he * t.n2 - t.he * s.n2;
+  if (Math.abs(den) < 1e-9) return null;
+  var h0 = (t.he * a.n2 - t.n2 * a.he) / den;
+  if (h0 < -1e-9) return null;
+  var h = Math.max(h0, 0);
+  var c1 = (a.o2 + h * s.o2) / (1 + h);
+  return { f1: c1 * 100, f2: t.o2 * 100, injShare: h / (1 + h) * 100 };
+}
+function computeActual(cell1, cell2, a, s) {
+  var c1 = cell1 / 100, c2 = cell2 / 100;
+  var denom = c1 - s.o2;
+  var h = Math.abs(denom) > 1e-9 ? (a.o2 - c1) / denom : -1;
+  var injOk = h >= -1e-9, hh = Math.max(h, 0);
+  var he1 = (a.he + hh * s.he) / (1 + hh);
+  var ratio2 = (1 - c1) > 1e-9 ? (1 - c2) / (1 - c1) : 1;
+  var heFinal = he1 * ratio2;
+  var n2Final = 1 - heFinal - c2;
+  return { o2: cell2, he: Math.min(Math.max(heFinal * 100, 0), 100), ok: injOk,
+           errN2: n2Final < -1e-9, errStick: cell1 > 40 || cell2 > 40, errCell: cell1 > cell2 };
+}
+function prefix(he, th) { return he > (th == null ? 0.01 : th) ? 'TX' : 'NX'; }
+//</calc>
+
+/* ───────────── Composants d'affichage ───────────── */
+function stColor(s) { return s === 'danger' ? 'var(--danger)' : s === 'warn' ? 'var(--warn)' : 'var(--text)'; }
+function ico(sz) { return '<svg viewBox="0 0 24 24" width="' + sz + '" height="' + sz + '" fill="currentColor" aria-hidden="true"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>'; }
+function alertB(text, s) {
+  var c = s === 'warn' ? 'var(--warn)' : 'var(--danger)';
+  return '<div class="alert" role="alert" style="--c:' + c + '">' + ico(22) + '<span>' + text + '</span></div>';
+}
+function resultBox(value, color, label) {
+  return '<div class="rbox" style="--c:' + color + '">' + (label ? '<div class="rbl">' + label + '</div>' : '') + '<div class="rbv">' + value + '</div></div>';
+}
+function mixHead(o2, he, color, label) { return resultBox('TX ' + o2 + ' / ' + he, color, label); }
+function cell(label, value, unit, s) {
+  s = s || 'ok'; var empty = value === '--';
+  return '<div class="rc"><div class="rl">' + label + '</div><div class="rv" style="color:' + (empty ? 'var(--label)' : stColor(s)) + '">' +
+    (s !== 'ok' ? ico(16) : '') + '<span>' + value + '</span>' + ((!empty && unit) ? '<span class="ru">' + unit.trim() + '</span>' : '') + '</div></div>';
+}
+function pair(l1, v1, u1, s1, l2, v2, u2, s2) { return '<div class="pair">' + cell(l1, v1, u1, s1) + cell(l2, v2, u2, s2) + '</div>'; }
+function rrow(label, value, unit, s) {
+  s = s || 'ok'; var empty = value === '--';
+  return '<div class="rr"><span class="rrl">' + label + '</span><span class="rrv" style="color:' + (empty ? 'var(--label)' : stColor(s)) + '">' +
+    (s !== 'ok' ? ico(18) : '') + '<span>' + (empty ? value : value + (unit || '')) + '</span></span></div>';
+}
+function tile(t1, t2, t3) { return '<div class="tile"><div class="t1">' + t1 + '</div><div class="t2">' + t2 + '</div><div class="t3">' + t3 + '</div></div>'; }
+function hint(t) { return '<div class="hint">' + t + '</div>'; }
+
+/* ───────────── Construction de l'interface ───────────── */
+function h(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+var FIELDS = {};
+var profError = false;
+
+function formatStep(v) { return v % 1 === 0 ? String(Math.trunc(v)) : v.toFixed(1); }
+function stepValue(current, delta, min, max) {
+  var cur = dec(current);
+  var clamp = function (v) { return Math.min(Math.max(v, min), max); };
+  if (cur == null) return formatStep(clamp(min + (delta > 0 ? delta : 0)));
+  return formatStep(clamp(cur + delta));
+}
+
+function field(key, label, o) {
+  o = o || {};
+  var step = o.step === undefined ? 1 : o.step, min = o.min === undefined ? 0 : o.min, max = o.max === undefined ? 100 : o.max;
+  var wrap = h('div', 'nf'); wrap.style.setProperty('--fc', o.color || 'var(--text)');
+  if (o.w) wrap.style.width = o.w + 'px';
+  var lab = h('label'); lab.textContent = label; wrap.appendChild(lab);
+  var row = h('div', 'nfrow');
+  var input = document.createElement('input');
+  input.type = 'text'; input.inputMode = 'decimal'; input.enterKeyHint = 'done';
+  input.autocomplete = 'off'; input.setAttribute('autocorrect', 'off'); input.setAttribute('aria-label', label);
+  input.value = S[key];
+  input.addEventListener('input', function () {
+    S[key] = input.value;
+    if (o.persist !== false) lsSet(key, input.value);
+    update();
+  });
+  input.addEventListener('focus', function () { setTimeout(function () { try { input.select(); } catch (e) {} }, 0); });
+  input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+  input.addEventListener('blur', function () { if (o.onDone) o.onDone(); });
+  function change(d) {
+    var next = stepValue(input.value, d, min, max);
+    input.value = next; S[key] = next; lsSet(key, next);
+    if (o.onStepped) o.onStepped();
+    update();
+  }
+  var minus = h('button', 'step', '−'), plus = h('button', 'step', '+');
+  minus.type = plus.type = 'button';
+  minus.setAttribute('aria-label', 'Diminuer ' + label); plus.setAttribute('aria-label', 'Augmenter ' + label);
+  minus.addEventListener('click', function () { change(-step); });
+  plus.addEventListener('click', function () { change(step); });
+  row.appendChild(minus); row.appendChild(input); row.appendChild(plus);
+  wrap.appendChild(row);
+  FIELDS[key] = { input: input };
+  return wrap;
+}
+function setField(key, v) { S[key] = v; lsSet(key, v); FIELDS[key].input.value = v; update(); }
+
+var pageEls = [], root = document.getElementById('pages');
+function newPage(title) {
+  var p = h('div', 'page');
+  p.appendChild(h('div', 'ptitle', '<span class="badge">CCR</span><span></span>'));
+  p.querySelector('.ptitle span:last-child').textContent = title;
+  root.appendChild(p); pageEls.push(p); return p;
+}
+function newCard(page, title, color) {
+  var sec = h('section', 'card'); sec.style.setProperty('--ac', color);
+  var hd = h('h2', 'ctitle', '<i></i><span></span>'); hd.querySelector('span').textContent = title;
+  sec.appendChild(hd); page.appendChild(sec);
+  return { sec: sec, setTitle: function (t) { hd.querySelector('span').textContent = t; },
+           add: function (e) { sec.appendChild(e); return e; },
+           dyn: function () { var d = h('div', 'dyn'); sec.appendChild(d); return d; } };
+}
+function frow(cls) { var r = h('div', cls); for (var i = 1; i < arguments.length; i++) r.appendChild(arguments[i]); return r; }
+function button(text, onclick) { var b = h('button', 'btn'); b.type = 'button'; b.textContent = text; b.addEventListener('click', onclick); return b; }
+
+var M = {};          // valeurs partagées entre les pages
+var D = {};          // conteneurs dynamiques
+var B = {};          // boutons
+
+/* ── Diluant ── */
+(function () {
+  var p = newPage('Diluant');
+  var c1 = newCard(p, 'Profondeur', '#888');
+  c1.add(frow('rowc', field('prof', 'PROF (m)', { min: 20, max: 120, w: 200, persist: false,
+    onStepped: function () { profError = false; FIELDS.prof.input.classList.remove('err'); },
+    onDone: function () {
+      var t = S.prof.trim();
+      if (t === '') { profError = false; }
+      else {
+        var ok = /^[+-]?\d+$/.test(t), v = ok ? parseInt(t, 10) : null;
+        profError = v === null || v < 20 || v > 120;
+        if (!profError) lsSet('prof', S.prof);
+      }
+      FIELDS.prof.input.classList.toggle('err', profError); update();
+    } })));
+  D.dilProf = c1.dyn();
+  var c2 = newCard(p, '🐋 Diluant proposé', 'var(--accent)'); D.dilAuto = c2.dyn();
+  var c3 = newCard(p, '✍️ Choix du diluant', 'var(--result)');
+  c3.add(frow('row2', field('dilO2', 'O₂ %'), field('dilHe', 'He %')));
+  B.dil = c3.add(button('Utiliser le diluant proposé', function () {
+    if (!M.autoUsable) return;
+    setField('dilO2', String(Math.round(M.autoM.o2))); setField('dilHe', String(Math.round(M.autoM.he)));
+  }));
+  D.dilChoice = c3.dyn();
+  var c4 = newCard(p, 'Dans la boucle · SP ' + SETPOINT, 'var(--seafoam)'); D.dilLoop = c4.dyn();
+})();
+
+/* ── Bailout ── */
+var cardBoProp;
+(function () {
+  var p = newPage('Bailout');
+  cardBoProp = newCard(p, '🫧 BO proposé', 'var(--accent)'); D.boProp = cardBoProp.dyn();
+  var c = newCard(p, '✍️ Choix du Bailout', 'var(--result)');
+  c.add(frow('row2', field('boO2', 'O₂ %'), field('boHe', 'He %')));
+  B.bo = c.add(button('Utiliser le BO proposé', function () {
+    if (!M.proposedOk) return;
+    setField('boO2', String(Math.round(M.proposed.o2))); setField('boHe', String(Math.round(M.proposed.he)));
+  }));
+  D.boChoice = c.dyn();
+})();
+
+/* ── Travel ── */
+var cardTrProp;
+(function () {
+  var p = newPage('Travel');
+  cardTrProp = newCard(p, '🐠 Travel proposé', 'var(--accent)'); D.trProp = cardTrProp.dyn();
+  var c = newCard(p, '✍️ Choix du Travel', 'var(--result)');
+  c.add(frow('row2', field('trO2', 'O₂ %'), field('trHe', 'He %')));
+  B.tr = c.add(button('Utiliser le Travel proposé', function () {
+    if (!M.proposal) return;
+    setField('trO2', String(Math.round(M.proposal.o2 * 100))); setField('trHe', String(Math.round(M.proposal.he * 100)));
+  }));
+  D.trChoice = c.dyn();
+  var c2 = newCard(p, '✍️ Choix SW du Travel', 'var(--seafoam)');
+  c2.add(frow('rowc', field('swt', 'PROF-SW (m)', { max: 120, w: 200 })));
+  B.sw = c2.add(button('Utiliser la profondeur du Travel choisi', function () {
+    if (!M.atSw) return;
+    setField('swt', String(Math.round(M.atSw.depth)));
+  }));
+  D.trSw = c2.dyn();
+})();
+
+/* ── Déco ── */
+var cardDecoProp;
+(function () {
+  var p = newPage('Déco');
+  cardDecoProp = newCard(p, '💨 Déco proposé', 'var(--accent)'); D.decoProp = cardDecoProp.dyn();
+  var c = newCard(p, '✍️ Choix de la déco', 'var(--result)');
+  c.add(frow('rowc', field('decoO2', 'O₂ %', { w: 200 })));
+  B.deco = c.add(button('Utiliser la déco proposée', function () {
+    if (!M.decoProposal) return;
+    setField('decoO2', String(Math.round(M.decoProposal.o2 * 100)));
+  }));
+  D.decoChoice = c.dyn();
+})();
+
+/* ── Mix Gaz ── */
+(function () {
+  var p = newPage('Mix Gaz');
+  var c1 = newCard(p, '💉 Gaz injecté', 'var(--violet)');
+  c1.add(frow('row2', field('injO2', 'O₂ injecté %'), field('injHe', 'He injecté %')));
+  c1.add(button('Hélium ' + HE_DEFAULT_PCT + ' %', function () { setField('injO2', '0'); setField('injHe', String(HE_DEFAULT_PCT)); }));
+  D.mgInj = c1.dyn();
+  var c2 = newCard(p, 'Trimix cible', 'var(--accent)');
+  c2.add(frow('row2', field('tgO2', 'O₂ Cible %'), field('tgHe', 'He Cible %')));
+  D.mgTarget = c2.dyn();
+  var c3 = newCard(p, 'Analyse cellules', 'var(--seafoam)');
+  c3.add(frow('row2', field('c1', 'CELL 1'), field('c2', 'CELL 2')));
+  D.mgCells = c3.dyn();
+  var c4 = newCard(p, '✈️ Mode héliair', 'var(--violet)');
+  c4.add(frow('rowc', field('heli', 'O₂ Héliair', { w: 200 })));
+  D.mgHeli = c4.dyn();
+})();
+
+/* ── Sout ── */
+(function () {
+  var p = newPage('Calcul Sout');
+  var cp = newCard(p, 'Paramètres', 'var(--c-param)');
+  cp.add(frow('row2', field('sProf', 'PROF', { color: 'var(--c-param)', max: 120 }), field('sConso', 'CONS', { color: 'var(--c-param)', max: 50 })));
+  cp.add(frow('row2', field('sTpsp', 'TPS. PROG', { color: 'var(--c-temps)', max: 30 }), field('sCs', 'C S', { color: 'var(--c-temps)', step: 0.1, max: 100 })));
+  cp.add(frow('rowc', field('sTpsr', 'TPS. R', { color: 'var(--c-temps)', max: 120, w: 200 })));
+  var c1 = newCard(p, 'Je détermine le Tps et la Dist', 'var(--accent)');
+  c1.add(frow('rowc', field('sVol', 'VOL', { color: 'var(--c-vol)', max: 9000, w: 200 })));
+  D.sout1 = c1.dyn();
+  var c2 = newCard(p, 'Je détermine le Tps et le Vol', 'var(--result)');
+  c2.add(frow('rowc', field('sDist', 'DIST', { color: 'var(--c-dist)', step: 10, max: 5000, w: 200 })));
+  D.sout2 = c2.dyn();
+  var c3 = newCard(p, 'Je détermine le Vol des blocs', 'var(--seafoam)');
+  c3.add(frow('rowc', field('sPb', 'PRESS', { color: 'var(--c-dist)', step: 10, max: 340, w: 200 })));
+  D.sout3 = c3.dyn();
+})();
+
+/* ───────────── Mise à jour (tous les calculs) ───────────── */
+function switchAlerts(o2Text, o2In, heIn, at, cdiPct) {
+  var s = '';
+  if (o2Text.trim() !== '' && o2In < 5) s += alertB('O₂ inférieur à 5 %');
+  if (o2In + heIn > 100) s += alertB('O₂ + He dépasse 100 % (' + f(o2In + heIn, 2) + ' %)');
+  if (at) {
+    if (at.pea > 35) s += alertB('PEA supérieure à 35 m');
+    var sd = LIM.densite(at.densite);
+    if (sd === 'danger') s += alertB('Densité supérieure à 6.8 g/L');
+    else if (sd === 'warn') s += alertB('Densité supérieure à 6.3 g/L', 'warn');
+    if (nz(at.cdi) > 0.5) s += alertB('Alerte contre-diffusion');
+    if ((at.ppo2Bo == null ? 1.0 : at.ppo2Bo) < 0.5) s += alertB('PPO₂ du BO inférieure à 0.5 au switch');
+    if (at.ppo2Travel > 1.7) s += alertB('PPO₂ du Travel supérieure à 1.7 au switch');
+    else if (at.ppo2Travel > 1.61) s += alertB('PPO₂ du Travel supérieure à 1.6 au switch', 'warn');
+  }
+  if (cdiPct != null) {
+    if (cdiPct > 19) s += alertB('Diff % N₂ : choix du Travel à revoir');
+    else if (cdiPct >= 14 && cdiPct <= 19) s += alertB('Attention : écart de % N₂', 'warn');
+  }
+  return s;
+}
+function switchResults(at, n2, cdiPct, cdiLabel, swMode) {
+  var s = '';
+  s += pair('PEA', at ? fo(at.pea, 2) : '--', ' m', at ? LIM.pea(at.pea) : 'ok',
+            'PPO₂ BO', at && at.ppo2Bo != null ? f(at.ppo2Bo, 2) : '--', ' bar', at && at.ppo2Bo != null ? boSwitchStatus(at.ppo2Bo) : 'ok');
+  s += pair('N₂', at ? f(n2, 1) : '--', ' %', 'ok', 'PPN₂', at ? f(at.ppn2, 2) : '--', ' bar', 'ok');
+  var cdiV = at && at.cdi != null ? f(at.cdi, 2) : '--', cdiS = at && at.cdi != null ? LIM.cdiPpn2(at.cdi) : 'ok';
+  var pctV = cdiPct != null ? f(cdiPct, 2) : '--', pctS = cdiPct != null ? LIM.cdiPercent(cdiPct) : 'ok';
+  var dens = rrow('Densité', at ? f(at.densite, 2) : '--', ' g/L', at ? LIM.densite(at.densite) : 'ok');
+  if (swMode) {
+    s += pair('Prof SW', at ? f(at.depth, 1) : '--', ' m', 'ok',
+              'PPO₂ Travel', at ? f(at.ppo2Travel, 2) : '--', ' bar', at ? travelPpo2Status(at.ppo2Travel) : 'ok');
+    s += pair(cdiLabel, cdiV, ' bar', cdiS, 'CDI diff % N₂', pctV, ' %', pctS);
+    s += dens;
+  } else {
+    s += pair(cdiLabel, cdiV, ' bar', cdiS, 'CDI diff % N₂', pctV, ' %', pctS);
+    s += rrow('Prof SW', at ? f(at.depth, 1) : '--', ' m', 'ok');
+    s += dens;
+  }
+  return s;
+}
+
+function update() {
+  /* ── Diluant ── */
+  var profondeur = nz(dec(S.prof)), pabs = 1 + profondeur / 10;
+  var autoM = autoDil(pabs), autoUsable = profondeur > 0 && autoM.he >= 0;
+  var o2V = dec(S.dilO2), heV = dec(S.dilHe);
+  var dil = (o2V != null && heV != null) ? mix(o2V, heV, pabs) : null;
+  var boucle = dil ? loopMix(dil, pabs) : null;
+  M.autoM = autoM; M.autoUsable = autoUsable;
+  var ppn2Dil = dil ? dil.ppn2 : 0, ppn2Boucle = boucle ? boucle.ppn2 : 0;
+
+  D.dilProf.innerHTML = profError ? alertB('Profondeur entre 20 et 120 m requise') : '';
+  if (autoUsable) {
+    D.dilAuto.innerHTML = mixHead(f(autoM.o2, 1), f(autoM.he, 1), 'var(--accent)', 'MÉLANGE PROPOSÉ') +
+      pair('Densité', f(autoM.densite, 2), ' g/L', LIM.densite(autoM.densite), 'N₂', f(autoM.n2, 1), ' %', 'ok');
+  } else {
+    D.dilAuto.innerHTML = mixHead('--', '--', 'var(--label)', 'MÉLANGE PROPOSÉ') +
+      (profondeur > 0 ? hint('Diluant auto non applicable pour une profondeur inférieure à ~' + f(AUTO_MIN_DEPTH, 0) + ' m') : '');
+  }
+  B.dil.disabled = !autoUsable;
+
+  var al = '';
+  if (o2V != null && o2V < 5) al += alertB('O₂ inférieur à 5 %');
+  if (o2V != null && o2V > 50) al += alertB('O₂ supérieur à 50 %');
+  if (heV != null && heV < 2) al += alertB('He inférieur à 2 % : à vérifier');
+  if (o2V != null && heV != null && o2V + heV > 100) al += alertB('O₂ + He dépasse 100 % (' + f(o2V + heV, 2) + ' %)');
+  if (dil && dil.ppo2 > 1.0) al += alertB('PPO₂ du diluant élevée', 'warn');
+  D.dilChoice.innerHTML = al +
+    mixHead(dil ? clean(dil.o2) : '--', dil ? clean(dil.he) : '--', 'var(--result)', 'DILUANT CHOISI') +
+    pair('PEA', dil ? f(dil.pea, 2) : '--', ' m', dil ? LIM.pea(dil.pea) : 'ok', 'PPO₂', dil ? f(dil.ppo2, 2) : '--', ' bar', dil ? LIM.ppo2(dil.ppo2) : 'ok') +
+    pair('N₂', dil ? f(dil.n2, 1) : '--', ' %', 'ok', 'PPN₂', dil ? f(dil.ppn2, 2) : '--', ' bar', 'ok') +
+    rrow('Densité', dil ? f(dil.densite, 2) : '--', ' g/L', dil ? LIM.densite(dil.densite) : 'ok');
+  D.dilLoop.innerHTML =
+    mixHead(boucle ? f(boucle.o2, 1) : '--', boucle ? f(boucle.he, 1) : '--', 'var(--seafoam)', 'MÉLANGE DANS LA BOUCLE') +
+    pair('O₂', boucle ? f(boucle.o2, 2) : '--', ' %', 'ok', 'He', boucle ? f(boucle.he, 2) : '--', ' %', 'ok') +
+    pair('N₂', boucle ? f(boucle.n2, 2) : '--', ' %', 'ok', 'PEA', boucle ? f(boucle.pea, 2) : '--', ' m', boucle ? LIM.pea(boucle.pea) : 'ok') +
+    rrow('Densité', boucle ? f(boucle.densite, 2) : '--', ' g/L', boucle ? LIM.densite(boucle.densite) : 'ok');
+
+  /* ── Bailout ── */
+  var hasDepth = pabs > 1.0;
+  var n2DilFraction = pabs > 0 ? ppn2Dil / pabs : 0;
+  function cdiPercent(n2) { return n2DilFraction > 0 ? (n2 / (n2DilFraction * 100) - 1) * 100 : null; }
+  var o2Prop = 1.6 / pabs * 100, n2Prop = 3.16 / pabs * 100;
+  var proposed = hasDepth ? build(o2Prop, 100 - o2Prop - n2Prop, n2Prop, pabs) : null;
+  var proposedOk = proposed != null && proposed.he >= 0;
+  var cdiProposed = proposedOk ? cdiPercent(proposed.n2) : null;
+  M.proposed = proposed; M.proposedOk = proposedOk;
+  var boO2 = dec(S.boO2), boHe = dec(S.boHe);
+  var bo = (hasDepth && boO2 != null && boHe != null) ? mix(boO2, boHe, pabs) : null;
+  var cdiDil = (bo && ppn2Dil > 0) ? bo.ppn2 - ppn2Dil : null;
+  var cdiBoucle = (bo && ppn2Boucle > 0) ? bo.ppn2 - ppn2Boucle : null;
+  var cdiPctBo = bo ? cdiPercent(bo.n2) : null;
+
+  cardBoProp.setTitle('🫧 BO proposé pour ' + f(profondeur, 0) + ' m');
+  if (proposedOk) {
+    D.boProp.innerHTML = mixHead(f(proposed.o2, 1), f(proposed.he, 1), 'var(--accent)', 'BAILOUT PROPOSÉ') +
+      pair('Densité', f(proposed.densite, 2), ' g/L', LIM.densite(proposed.densite), 'N₂', f(proposed.n2, 1), ' %', 'ok') +
+      (cdiProposed != null && cdiProposed > 9 ? rrow('CDI diff % N₂', f(cdiProposed, 2), ' %', LIM.cdiPercent(cdiProposed)) : '') +
+      (cdiProposed != null && cdiProposed > 19 ? alertB('Diff % N₂ : choix du diluant à revoir ?', 'warn') : '');
+  } else {
+    D.boProp.innerHTML = mixHead('--', '--', 'var(--label)', 'BAILOUT PROPOSÉ') +
+      hint(!hasDepth ? 'Saisis d\'abord la profondeur dans l\'écran Diluant.'
+           : 'BO auto non applicable pour une profondeur inférieure à ~' + f(BAILOUT_MIN_DEPTH, 0) + ' m');
+  }
+  B.bo.disabled = !proposedOk;
+
+  al = '';
+  if (boO2 != null && boO2 < 5) al += alertB('O₂ inférieur à 5 %');
+  if (boO2 != null && boO2 > 50) al += alertB('O₂ supérieur à 50 %');
+  if (boHe != null && boHe < 2) al += alertB('He inférieur à 2 % : à vérifier');
+  if (boO2 != null && boHe != null && boO2 + boHe > 100) al += alertB('O₂ + He dépasse 100 % (' + f(boO2 + boHe, 2) + ' %)');
+  if (bo) {
+    if (bo.ppo2 > 1.6) al += alertB('PPO₂ du bailout supérieure à 1.6');
+    var cdiAlert = nz(cdiPctBo) > 19 || nz(cdiDil) > 0.5 || nz(cdiBoucle) > 0.5;
+    if (cdiAlert) al += alertB('Alerte contre-diffusion');
+    else if (cdiPctBo != null && cdiPctBo >= 14 && cdiPctBo <= 19) al += alertB('Attention : écart de % N₂', 'warn');
+    var sd = LIM.densite(bo.densite);
+    if (sd === 'danger') al += alertB('Densité supérieure à 6.8 g/L'); else if (sd === 'warn') al += alertB('Densité en zone critique', 'warn');
+    var sp = LIM.pea(bo.pea);
+    if (sp === 'danger') al += alertB('PEA supérieure à 35 m'); else if (sp === 'warn') al += alertB('PEA en zone critique', 'warn');
+  }
+  D.boChoice.innerHTML = al +
+    mixHead(bo ? clean(bo.o2) : '--', bo ? clean(bo.he) : '--', 'var(--result)', 'BAILOUT CHOISI') +
+    pair('PEA', bo ? f(bo.pea, 2) : '--', ' m', bo ? LIM.pea(bo.pea) : 'ok', 'PPO₂', bo ? f(bo.ppo2, 2) : '--', ' bar', bo ? LIM.ppo2Bailout(bo.ppo2) : 'ok') +
+    pair('N₂', bo ? f(bo.n2, 1) : '--', ' %', 'ok', 'PPN₂', bo ? f(bo.ppn2, 2) : '--', ' bar', 'ok') +
+    pair('CDI diluant', fo(cdiDil, 2), ' bar', st(cdiDil, LIM.cdiPpn2), 'CDI boucle', fo(cdiBoucle, 2), ' bar', st(cdiBoucle, LIM.cdiPpn2)) +
+    rrow('CDI diff % N₂', fo(cdiPctBo, 2), ' %', st(cdiPctBo, LIM.cdiPercent)) +
+    rrow('Densité', bo ? f(bo.densite, 2) : '--', ' g/L', bo ? LIM.densite(bo.densite) : 'ok');
+
+  /* ── Travel ── */
+  var o2bopPct = nz(dec(S.boO2)), n2bopPct = bo ? bo.n2 : 0;
+  var o2bopRatio = o2bopPct / 100, n2bopRatio = n2bopPct / 100, hasBo = o2bopRatio > 0;
+  var proposal = proposeTravel(o2bopPct, n2bopPct);
+  M.proposal = proposal;
+  cardTrProp.setTitle(proposal ? '🐠 Trav proposé à ' + f(proposal.profondeur, 1) + ' m' : '🐠 Travel proposé');
+  if (proposal) {
+    var pct = proposal.cdiPercent;
+    D.trProp.innerHTML =
+      resultBox(proposal.isNx ? 'NX ' + f(proposal.o2 * 100, 1) : 'TX ' + f(proposal.o2 * 100, 1) + ' / ' + f(proposal.he * 100, 1), 'var(--accent)', 'TRAVEL PROPOSÉ') +
+      (pabs > 1 && o2bopRatio * pabs > 1.61 ? alertB('PPO₂ du BO supérieure à 1.61 bar') : '') +
+      pair('PPO₂ BO au Sw', f(proposal.ppo2Bo, 2), ' bar', boSwitchStatus(proposal.ppo2Bo), 'N₂', f(proposal.n2 * 100, 1), ' %', 'ok') +
+      pair(proposal.isNx ? 'Δ PPN₂' : 'CDI', f(proposal.cdi, 2), ' bar', LIM.cdiPpn2(proposal.cdi),
+           'CDI diff % N₂', fo(pct, 2), ' %', st(pct, LIM.cdiPercent)) +
+      rrow('Densité', f(proposal.densite, 2), ' g/L', LIM.densite(proposal.densite)) +
+      (pct != null && pct > 19 ? alertB('Diff % N₂ : choix du BO à revoir ?', 'warn') : '');
+  } else {
+    D.trProp.innerHTML = resultBox('--', 'var(--label)', 'TRAVEL PROPOSÉ') +
+      hint(!hasBo ? 'Choisis d\'abord un bailout dans l\'écran Bailout.' : 'Pas de travel proposé pour ce bailout (switch en surface).');
+  }
+  B.tr.disabled = !proposal;
+
+  var o2In = nz(dec(S.trO2)), heIn = nz(dec(S.trHe));
+  var valid = o2In > 0 && o2In <= 100 && heIn >= 0 && heIn <= 100 && o2In + heIn <= 100;
+  var n2In = 100 - o2In - heIn;
+  var cdiPct = (valid && n2bopPct > 0) ? ((n2In / n2bopPct) - 1) * 100 : null;
+  var cdiLabel = heIn === 0 ? 'Δ PPN₂' : 'CDI';
+  var chosenText = !valid ? '--' : heIn === 0 ? 'NX ' + clean(o2In) : 'TX ' + clean(o2In) + ' / ' + clean(heIn);
+  var atSw = valid ? travelAt(1.6 / (o2In / 100), o2In, heIn, o2bopRatio, n2bopRatio) : null;
+  var swtIn = dec(S.swt);
+  var atSwt = (valid && swtIn != null && swtIn > 0) ? travelAt(swtIn / 10 + 1, o2In, heIn, o2bopRatio, n2bopRatio) : null;
+  M.atSw = atSw;
+  B.sw.disabled = !atSw;
+  D.trChoice.innerHTML = switchAlerts(S.trO2, o2In, heIn, atSw, cdiPct) +
+    resultBox(chosenText, 'var(--result)', 'TRAVEL CHOISI · SWITCH PPO₂ 1.6') +
+    switchResults(atSw, n2In, cdiPct, cdiLabel, false);
+  D.trSw.innerHTML = switchAlerts(S.trO2, o2In, heIn, atSwt, cdiPct) +
+    resultBox(chosenText, 'var(--seafoam)', swtIn != null && swtIn > 0 ? 'TRAVEL CHOISI · SWITCH À ' + f(swtIn, 0) + ' m' : 'TRAVEL CHOISI') +
+    switchResults(atSwt, n2In, cdiPct, cdiLabel, true);
+
+  /* ── Déco ── */
+  var o2trPct = nz(dec(S.trO2)), hetrPct = nz(dec(S.trHe)), n2trPct = 100 - o2trPct - hetrPct;
+  var hasTravel = o2trPct > 0 && n2trPct >= 0;
+  var dp = proposeDeco(o2trPct, hetrPct);
+  M.decoProposal = dp;
+  cardDecoProp.setTitle(dp ? '💨 Déco proposé ' + f(dp.profondeur, 0) + ' m' : '💨 Déco proposé');
+  if (dp) {
+    var dpct = dp.cdiPercent;
+    D.decoProp.innerHTML = resultBox('NX ' + f(dp.o2 * 100, 1), 'var(--accent)', 'DÉCO PROPOSÉE') +
+      (dpct != null && dpct > 19 ? alertB('Diff % N₂ : choix du Travel à revoir ?', 'warn') : '') +
+      pair('N₂', f(dp.n2 * 100, 2), ' %', 'ok', 'Δ PPN₂', f(dp.cdi, 2), ' bar', LIM.cdiPpn2(dp.cdi)) +
+      pair('PPO₂ Trav au SW', f(dp.ppo2Trav, 2), ' bar', decoTravStatus(dp.ppo2Trav), 'CDI diff % N₂', fo(dpct, 2), ' %', st(dpct, LIM.cdiPercent));
+  } else {
+    D.decoProp.innerHTML = resultBox('--', 'var(--label)', 'DÉCO PROPOSÉE') + hint('Choisis d\'abord un Travel dans l\'écran Travel.');
+  }
+  B.deco.disabled = !dp;
+  var dO2 = nz(dec(S.decoO2)), dValid = dO2 > 0 && dO2 <= 100, dN2 = 100 - dO2;
+  var pabsSw = dValid ? 1.6 / (dO2 / 100) : 0, profSw = (pabsSw - 1) * 10;
+  var ppo2TravSw = (dValid && hasTravel) ? o2trPct / 100 * pabsSw : null;
+  var cdiSw = (dValid && hasTravel) ? (dN2 / 100) * pabsSw - (n2trPct / 100) * pabsSw : null;
+  var dCdiPct = (dValid && n2trPct > 0) ? (dN2 / n2trPct - 1) * 100 : null;
+  D.decoChoice.innerHTML =
+    (nz(cdiSw) > 0.5 ? alertB('Alerte CDI supérieure à 0.5 bar') : '') +
+    (dCdiPct != null && dCdiPct > 19 ? alertB('Diff % N₂ : choix du Travel ou de la Déco à revoir ?', 'warn') : '') +
+    resultBox(dValid ? 'NX ' + clean(dO2) : '--', 'var(--result)', 'DÉCO CHOISIE') +
+    pair('Prof SW', dValid ? f(profSw, 2) : '--', ' m', 'ok', 'N₂', dValid ? f(dN2, 0) : '--', ' %', 'ok') +
+    pair('PPO₂ Travel SW', fo(ppo2TravSw, 2), ' bar', st(ppo2TravSw, decoTravStatus), 'Δ PPN₂', fo(cdiSw, 2), ' bar', st(cdiSw, LIM.cdiPpn2)) +
+    rrow('CDI diff % N₂', fo(dCdiPct, 2), ' %', st(dCdiPct, LIM.cdiPercent));
+
+  /* ── Mix Gaz ── */
+  var injDefault = S.injO2.trim() === '' && S.injHe.trim() === '';
+  var injO2Pct = injDefault ? 0 : nz(dec(S.injO2));
+  var injHePct = injDefault ? HE_DEFAULT_PCT : nz(dec(S.injHe));
+  var injected = gas(injO2Pct / 100, injHePct / 100);
+  D.mgInj.innerHTML = (!gValid(injected) ? alertB('O₂ + He injecté dépasse 100 %') : '') +
+    resultBox('NX'.replace('NX', prefix(injHePct)) + ' ' + f(injO2Pct, 2) + ' / ' + f(injHePct, 2), 'var(--violet)',
+              injDefault ? 'MÉLANGE INJECTÉ · HÉLIUM ' + HE_DEFAULT_PCT + ' %' : 'MÉLANGE INJECTÉ');
+
+  var o2Target = nz(dec(S.tgO2)), heTarget = nz(dec(S.tgHe));
+  var targetGas = gas(o2Target / 100, heTarget / 100);
+  var targetReady = o2Target > 0 && gValid(targetGas) && gValid(injected);
+  var target = targetReady ? computeTarget(targetGas, AIR, injected) : null;
+  D.mgTarget.innerHTML =
+    resultBox(prefix(heTarget) + ' ' + f(o2Target, 2) + ' / ' + f(heTarget, 2), 'var(--accent)', 'MÉLANGE VISÉ') +
+    (o2Target > 0 && !gValid(targetGas) ? alertB('O₂ + He cible dépasse 100 %') : '') +
+    (targetReady && !target ? alertB('Cible inatteignable avec ces gaz d\'aspiration et d\'injection') : '') +
+    (target && target.f1 > target.f2 ? alertB('Extraction O₂ nécessaire', 'warn') : '') +
+    '<div class="tiles">' + tile('CELL 1', target ? f(target.f1, 2) + '%' : '--', 'Inject He') +
+    tile('CELL 2', target ? f(target.f2, 2) + '%' : '--', 'Adjust O2') + '</div>' +
+    (target ? rrow('Part gaz injecté', f(target.injShare, 1), ' %', 'ok') : '');
+
+  var cell1 = nz(dec(S.c1)), cell2 = nz(dec(S.c2));
+  var actual = (cell1 > 0 && cell2 > 0 && gValid(injected)) ? computeActual(cell1, cell2, AIR, injected) : null;
+  D.mgCells.innerHTML =
+    (actual && !actual.ok ? alertB('CELL 1 incohérente avec les gaz d\'aspiration et d\'injection') : '') +
+    (actual && actual.errCell ? alertB('Cell 1 > cell 2 : extraction O₂ nécessaire') : '') +
+    (actual && actual.errN2 ? alertB('N₂ négatif : hors limites', 'warn') : '') +
+    (actual && actual.errStick ? alertB('Limité à 40 % au stick') : '') +
+    resultBox(actual && actual.ok ? prefix(actual.he) + ' ' + f(actual.o2, 2) + ' / ' + f(actual.he, 2) : '--', 'var(--seafoam)', 'MÉLANGE RÉEL OBTENU');
+
+  var o2H = nz(dec(S.heli)), heH = o2H < 20.95 ? (1 - o2H / 20.95) * 100 : 0;
+  D.mgHeli.innerHTML = resultBox(prefix(heH, 0.1) + ' ' + f(o2H, 2) + ' / ' + f(heH, 2), 'var(--violet)');
+
+  /* ── Sout ── */
+  var sProf = nz(dec(S.sProf)), sConso = nz(dec(S.sConso)), sTpsp = nz(dec(S.sTpsp)), cs = nz(dec(S.sCs)),
+      sTpsr = nz(dec(S.sTpsr)), sVol = nz(dec(S.sVol)), sDist = nz(dec(S.sDist)), sPb = nz(dec(S.sPb));
+  var sPabs = sProf / 10 + 1, denom = sPabs * sConso * cs;
+  var tpsPlg = (sVol > 0 && denom > 0) ? sVol / denom - sTpsr : null;
+  var dist = tpsPlg != null ? sTpsp * tpsPlg : null;
+  var tpsPlg2 = (sDist > 0 && sTpsp > 0) ? sDist / sTpsp : null;
+  var vol2 = tpsPlg2 != null ? sPabs * (sTpsr + tpsPlg2) * sConso * cs : null;
+  var typeBloc = (vol2 != null && sPb > 0) ? vol2 / sPb / 2 : null;
+  D.sout1.innerHTML = pair('Tps de Plg', fo(tpsPlg, 2), ' mn', (tpsPlg != null && tpsPlg <= 0) ? 'danger' : 'ok', 'Distance', fo(dist, 2), ' m', 'ok');
+  D.sout2.innerHTML = pair('Tps de Plg', fo(tpsPlg2, 2), ' mn', 'ok', 'Vol total blocs', fo(vol2, 0), ' l', 'ok');
+  D.sout3.innerHTML = resultBox(typeBloc != null ? f(typeBloc, 2) + ' L' : '--', 'var(--seafoam)', 'TYPE DE BLOC');
+}
+
+/* ───────────── Onglets ───────────── */
+var TABS = ['Dil', 'BO', 'Trav', 'Déco', 'MG', 'Sout'];
+var tabsEl = document.getElementById('tabs'), ind = document.getElementById('ind'), tabBtns = [];
+TABS.forEach(function (t, i) {
+  var b = h('button'); b.type = 'button'; b.textContent = t; b.setAttribute('role', 'tab');
+  b.addEventListener('click', function () { showTab(i); });
+  tabsEl.insertBefore(b, ind); tabBtns.push(b);
+});
+function showTab(i) {
+  pageEls.forEach(function (p, k) { p.classList.toggle('on', k === i); });
+  tabBtns.forEach(function (b, k) { b.setAttribute('aria-selected', k === i ? 'true' : 'false'); });
+  ind.style.transform = 'translateX(' + (i * 100) + '%)';
+  lsSet('tab', String(i));
+  window.scrollTo(0, 0);
+}
+var t0 = parseInt(lsGet('tab'), 10);
+showTab(isNaN(t0) || t0 < 0 || t0 >= TABS.length ? 0 : t0);
+update();
+
+/* ───────────── Service worker (usage hors connexion) ───────────── */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', function () {
+    try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {}
+  });
+}
+
+})();
+</script>
+</body>
+</html>
