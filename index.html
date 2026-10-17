@@ -19,6 +19,7 @@
   --accent:#007b8f; --seafoam:#00805f; --violet:#7a3fc2; --result:#8c7a00; --warn:#b45309; --danger:#c62828;
   --tile:rgba(0,0,0,.05); --input-b:rgba(0,0,0,.3); --step:rgba(0,0,0,.07); --cellv:#8a5a1a;
   --c-param:#b45309; --c-temps:#9a6b2f; --c-vol:#2e7d32; --c-dist:#7a8a00;
+  --label2: var(--seafoam); --label3: #a0611f;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -30,7 +31,7 @@
   --text:#ffffff; --label:#9aa4ae; --tab:rgba(150,150,150,.75); --tab-on:#ffffff;
   --accent:#00e5ff; --seafoam:#00ffc8; --violet:#bb86fc; --result:#f4ff06; --warn:#ffa500; --danger:#ff4444;
   --tile:rgba(0,0,0,.22); --input-b:rgba(255,255,255,.3); --step:rgba(255,255,255,.09); --cellv:#ffe4c4;
-  --c-param:#ffa500; --c-temps:#ffd296; --c-vol:#4caf50; --c-dist:#cdd63a;
+  --c-param:#ffa500; --c-temps:#ffd296; --c-vol:#4caf50; --c-dist:#cdd63a; --label3: #ca8133;
 }
 }
 :root[data-theme="dark"] {
@@ -39,7 +40,7 @@
   --text:#ffffff; --label:#9aa4ae; --tab:rgba(150,150,150,.75); --tab-on:#ffffff;
   --accent:#00e5ff; --seafoam:#00ffc8; --violet:#bb86fc; --result:#f4ff06; --warn:#ffa500; --danger:#ff4444;
   --tile:rgba(0,0,0,.22); --input-b:rgba(255,255,255,.3); --step:rgba(255,255,255,.09); --cellv:#ffe4c4;
-  --c-param:#ffa500; --c-temps:#ffd296; --c-vol:#4caf50; --c-dist:#cdd63a;
+  --c-param:#ffa500; --c-temps:#ffd296; --c-vol:#4caf50; --c-dist:#cdd63a; --label3: #ca8133;
 }
 html { scroll-padding-top: env(safe-area-inset-top, 0px); -webkit-text-size-adjust: 100%; }
 *, *::before, *::after { box-sizing: inherit; }
@@ -111,6 +112,11 @@ main { max-width: 560px; margin: 0 auto; padding: 16px; }
 .tile .t2 { font-size: 18px; font-weight: 700; color: var(--cellv); }
 .tile .t3 { font-size: 9px; font-weight: 700; color: var(--accent); opacity: .85; }
 .hint { font-size: 14px; color: var(--label); }
+.hint.src { color: var(--label3); }                          /* lignes « Source » */
+.hint.ok { color: var(--label2); white-space: pre-line; }   /* lignes « Choix validé » */
+.hint.pre { white-space: pre-line; }
+.hint.lh { line-height: 20px; }
+.hint.sm { font-size: 13px; line-height: 16px; }
 </style>
 </head>
 <body>
@@ -126,9 +132,14 @@ var KEY = 'ccr1:';
 function lsGet(k) { try { return localStorage.getItem(KEY + k) || ''; } catch (e) { return ''; } }
 function lsSet(k, v) { try { localStorage.setItem(KEY + k, v); } catch (e) {} }
 var NAMES = ['prof','dilO2','dilHe','boO2','boHe','trO2','trHe','swt','decoO2','injO2','injHe','tgO2','tgHe','c1','c2','heli',
-             'sProf','sConso','sTpsp','sCs','sTpsr','sVol','sDist','sPb'];
+             'sProf','sConso','sTpsp','sCs','sTpsr','sVol','sDist','sPb','boPea','boDens','dPpo2','dDens','dPea','decoSrc','swO2','swHe','trSrc','dilSrc','decoSel','boSrc'];
 var S = {};
 NAMES.forEach(function (n) { S[n] = lsGet(n); });
+if (S.boPea === '') S.boPea = '30';     // réglages du bailout proposé (valeurs par défaut)
+if (S.boDens === '') S.boDens = '6.3';
+if (S.dPpo2 === '') S.dPpo2 = '1';      // réglages du diluant proposé (valeurs par défaut)
+if (S.dDens === '') S.dDens = '6.1';
+if (S.dPea === '') S.dPea = '30';
 
 //<calc>
 /* ───────────── Outils de calcul ───────────── */
@@ -141,12 +152,21 @@ function dec(s) {
 }
 function f(x, d) { return x.toFixed(d).replace('.', ','); }
 function fo(x, d) { return (x == null || isNaN(x)) ? '--' : f(x, d); }
+function clampv(x, lo, hi, def) { return x == null ? def : Math.min(Math.max(x, lo), hi); }
 function clean(x) { return x % 1 === 0 ? String(Math.trunc(x)) : f(x, 1); }
 function nz(x) { return x == null ? 0 : x; }
 var RHO = { o2: 1.359, n2: 1.189, he: 0.170 };   // g/L à 15 °C (CE/ISO)
 var SETPOINT = 1.3;
 var AUTO_MIN_DEPTH = 31.6, BAILOUT_MIN_DEPTH = 37.6;
 var HE_DEFAULT_PCT = 98;
+var AUTO_MAX_DENS = 6.10;   // densité maxi du diluant proposé (g/L)
+/* Contraintes du bailout proposé */
+var BO_PPO2_MAX = 1.6, BO_PPO2_MIN = 1.3;   // PPO2 entre 1.3 et 1.6
+var BO_N2_MAX_PTS = 4;                      // N2 du BO ≤ N2 du diluant + 4 points
+var BO_CDI_PCT_MAX = 10;                    // écart relatif de N2 ≤ 10 %
+var BO_CDI_MAX = 0.5;                       // delta PPN2 ≤ 0.5 bar (diluant et boucle)
+var BO_PEA_MAX = 34;                        // PEA ≤ 34 m
+var BO_DENS_MAX = 6.9;                      // densité ≤ 6.9 g/L
 
 var LIM = {
   ppo2: function (v) { return (v > 1.15 || v < 0.48) ? 'danger' : (v > 1.1 || v < 0.5) ? 'warn' : 'ok'; },
@@ -164,13 +184,37 @@ function build(o2, he, n2, pabs) {
            pea: ((ppn2 / 0.79) - 1) * 10,
            densite: (o2 * RHO.o2 + he * RHO.he + n2 * RHO.n2) / 100 * pabs };
 }
-function autoDil(pabs) {
-  var o2 = 100 * (1.0 / pabs), n2 = 100 * (3.16 / pabs);
+function ppn2ForPea(pea) { return 0.79 * (pea / 10 + 1); }       // 30 m -> 3.16 bar
+function autoMinDepth(ppo2, pea) { return (ppo2 + ppn2ForPea(pea) - 1) * 10; }
+function autoDil(pabs, ppo2, pea, densMax) {
+  var o2 = 100 * (ppo2 / pabs), n2 = 100 * (ppn2ForPea(pea) / pabs);
+  // N₂ maximal pour ne pas dépasser la densité limite (le N₂ est remplacé par de l'hélium)
+  var n2Max = (densMax / pabs * 100 - 100 * RHO.he - o2 * (RHO.o2 - RHO.he)) / (RHO.n2 - RHO.he);
+  n2 = Math.min(n2, Math.max(n2Max, 0));
   return build(o2, 100 - o2 - n2, n2, pabs);
 }
 function mix(o2, he, pabs) {
   if (!(o2 >= 0 && o2 <= 100) || !(he >= 0 && he <= 100) || o2 + he > 100) return null;
   return build(o2, he, 100 - o2 - he, pabs);
+}
+/* Bailout proposé : le plus de N₂ possible dans les limites, PPO₂ la plus haute possible entre 1.3 et 1.6 */
+function bailoutProposed(pabs, ppn2Dil, ppn2Boucle, peaMax, densMax) {
+  if (pabs <= 1.0) return null;
+  var o2Pref = BO_PPO2_MAX / pabs * 100, o2Min = BO_PPO2_MIN / pabs * 100;
+  if (o2Min > 100) return null;
+  var n2Cap = 0.79 * (1 + peaMax / 10) / pabs * 100;
+  if (ppn2Dil > 0) {
+    var n2Dil = ppn2Dil / pabs * 100;
+    n2Cap = Math.min(n2Cap, n2Dil + BO_N2_MAX_PTS, n2Dil * (1 + BO_CDI_PCT_MAX / 100), (ppn2Dil + BO_CDI_MAX) / pabs * 100);
+    if (ppn2Boucle > 0) n2Cap = Math.min(n2Cap, (ppn2Boucle + BO_CDI_MAX) / pabs * 100);
+  } else {
+    n2Cap = Math.min(n2Cap, 3.16 / pabs * 100);
+  }
+  var o2 = Math.min(Math.max(Math.min(o2Pref, 100 - n2Cap), o2Min), 100);
+  // densité : si elle dépasse la limite, on remplace du N₂ par de l'hélium (l'O₂ ne bouge pas)
+  var n2Dens = (densMax / pabs * 100 - 100 * RHO.he - o2 * (RHO.o2 - RHO.he)) / (RHO.n2 - RHO.he);
+  var n2 = Math.max(Math.min(n2Cap, 100 - o2, n2Dens), 0);
+  return build(o2, 100 - o2 - n2, n2, pabs);
 }
 function loopMix(dil, pabs) {
   var o2 = SETPOINT / pabs * 100;
@@ -180,28 +224,66 @@ function loopMix(dil, pabs) {
 }
 
 /* Travel */
-function proposeTravel(o2bopPct, n2bopPct) {
-  var o2bop = o2bopPct / 100, n2bop = n2bopPct / 100;
-  if (o2bop <= 0) return null;
-  var pabstrav = 0.8 / o2bop;
-  if (pabstrav <= 1.0) return null;
-  var o2trav = 1.6 / pabstrav, n2trav;
-  if (o2trav > 0.49) n2trav = 1.0 - o2trav;
-  else if (((n2bop * pabstrav + 0.5) / pabstrav) > 0.49 && o2trav > 0.45) n2trav = 1.0 - o2trav;
-  else n2trav = Math.min(1.05 * n2bop, ((n2bop * pabstrav) + 0.5) / pabstrav);
-  var heRaw = 1.0 - o2trav - n2trav;
-  var hetrav = heRaw < 0.20 ? 0 : heRaw;
-  function cdiPct(n2) { return n2bopPct > 0 ? ((n2 * 100 / n2bopPct) - 1) * 100 : null; }
-  if (hetrav === 0) {
-    var o2nx = (1.0 - n2trav) < 0.49 ? 0.5 : (1.0 - n2trav);
-    var n2nx = 1 - o2nx, pabsnx = 1.6 / o2nx;
-    return { isNx: true, o2: o2nx, he: 0, n2: n2nx, profondeur: (pabsnx - 1) * 10,
-             densite: (o2nx * RHO.o2 + n2nx * RHO.n2) * pabsnx,
-             cdi: n2nx * pabsnx - n2bop * pabsnx, ppo2Bo: o2bop * pabsnx, cdiPercent: cdiPct(n2nx) };
+/* Travel proposé : règles par zone de profondeur de plongée */
+var TR = { aMax: 40, bMax: 75, aO2: 0.32, bO2Min: 50, ppo2Max: 1.6, ppo2Min: 1.4, cdiMax: 0.5, dn2Max: 0.25, depthMax: 45, boSwPpo2: 0.5, n2MaxPts: 0.04 };   // zone 76–120 m : switch le plus haut (PPO₂ BO 0.5), N₂ ≤ BO + 4 points
+function proposeTravel(profondeur, o2bopPct, n2bopPct) {
+  if (!(profondeur > 0)) return null;
+  var o2bop = o2bopPct / 100, n2bop = n2bopPct / 100, hasBo = o2bop > 0;
+  var pCap = TR.depthMax / 10 + 1, o2, he, pabs, zone;
+  if (profondeur <= TR.aMax) {                    // 1–40 m : NX 32, switch à PPO2 1.6
+    o2 = TR.aO2; he = 0; pabs = TR.ppo2Max / o2;
+    zone = 'Zone 1–40 m : NX 32 systématique';
+  } else if (profondeur <= TR.bMax) {             // 41–75 m : plus petit NX ≥ 50 % dans les limites
+    zone = 'Zone 41–75 m : NX ≥ 50 %, PPO₂ 1.4–1.6, CDI ≤ 0.5 bar, écart N₂ ≤ 25 %';
+    var found = false;
+    for (var pct = TR.bO2Min; pct <= 100 && !found; pct++) {
+      var o = pct / 100, n = 1 - o, p = Math.min(TR.ppo2Max / o, pCap);
+      if (hasBo) {
+        if (n2bop > 0 && n > (1 + TR.dn2Max) * n2bop + 1e-9) continue;
+        if (n > n2bop) p = Math.min(p, TR.cdiMax / (n - n2bop));
+      }
+      if (p >= TR.ppo2Min / o - 1e-9) { o2 = o; he = 0; pabs = p; found = true; }
+    }
+    if (!found) return null;
+  } else {                                        // 76–120 m : le plus de N₂ possible, hélium en complément
+    zone = 'Zone 76–120 m : PPO₂ 1.4–1.6, PPO₂ BO ≥ 0.5, N₂ ≤ BO + 4 pts, CDI ≤ 0.5 bar, écart N₂ ≤ 25 %, switch ≤ 45 m';
+    if (!hasBo) return null;
+    var p2 = Math.min(TR.boSwPpo2 / o2bop, pCap);
+    if (p2 <= 1.0) return null;
+    var o2Pref = TR.ppo2Max / p2, o2Min = TR.ppo2Min / p2;
+    if (o2Min > 1.0) return null;
+    var n2Cap = n2bop > 0 ? Math.min((1 + TR.dn2Max) * n2bop, n2bop + TR.n2MaxPts, n2bop + TR.cdiMax / p2) : Math.min(TR.n2MaxPts, TR.cdiMax / p2);
+    o2 = Math.min(Math.max(Math.min(o2Pref, 1 - n2Cap), o2Min), 1.0);
+    var n2b = Math.max(Math.min(n2Cap, 1 - o2), 0);
+    he = 1 - o2 - n2b; pabs = p2;
   }
-  return { isNx: false, o2: o2trav, he: hetrav, n2: n2trav, profondeur: (pabstrav - 1) * 10,
-           densite: (o2trav * RHO.o2 + hetrav * RHO.he + n2trav * RHO.n2) * pabstrav,
-           cdi: n2trav * pabstrav - n2bop * pabstrav, ppo2Bo: o2bop * pabstrav, cdiPercent: cdiPct(n2trav) };
+  var n2 = 1 - o2 - he;
+  return { isNx: he < 0.005, o2: o2, he: he, n2: n2, profondeur: (pabs - 1) * 10,
+           densite: (o2 * RHO.o2 + he * RHO.he + n2 * RHO.n2) * pabs,
+           cdi: hasBo ? (n2 - n2bop) * pabs : null, ppo2Bo: hasBo ? o2bop * pabs : null,
+           cdiPercent: n2bopPct > 0 ? ((n2 * 100 / n2bopPct) - 1) * 100 : null, zone: zone };
+}
+/* Travel proposé pour un switch imposé (mêmes règles que proposeTravel) -> {o2, he} en fractions, ou null */
+var SW_DEPTH_MAX = 120;   // Choix SW du Travel : seule limite = celle de l'appli
+function proposeTravelAt(profondeur, sw, o2bopPct, n2bopPct) {
+  if (!(profondeur > 0) || !(sw > 0) || sw > SW_DEPTH_MAX) return null;
+  if (profondeur <= TR.aMax) return { o2: TR.aO2, he: 0 };
+  var p = sw / 10 + 1, o2bop = o2bopPct / 100, n2bop = n2bopPct / 100, hasBo = o2bop > 0;
+  var o2Max = Math.min(TR.ppo2Max / p, 1), o2Ppo2Min = TR.ppo2Min / p;
+  if (profondeur <= TR.bMax) {                    // plus petit NX ≥ 50 % dans les limites
+    var low = Math.max(TR.bO2Min / 100, o2Ppo2Min);
+    if (hasBo) {
+      if (n2bop > 0) low = Math.max(low, 1 - (1 + TR.dn2Max) * n2bop);
+      low = Math.max(low, 1 - (n2bop + TR.cdiMax / p));
+    }
+    var o2 = Math.ceil(low * 100 - 1e-9) / 100;
+    return o2 <= o2Max + 1e-9 ? { o2: o2, he: 0 } : null;
+  }
+  if (!hasBo || o2Ppo2Min > 1) return null;       // 76–120 m : le plus de N₂ possible, hélium en complément
+  var n2Cap = n2bop > 0 ? Math.min((1 + TR.dn2Max) * n2bop, n2bop + TR.n2MaxPts, n2bop + TR.cdiMax / p) : Math.min(TR.n2MaxPts, TR.cdiMax / p);
+  var o2c = Math.min(Math.max(Math.min(o2Max, 1 - n2Cap), o2Ppo2Min), 1);
+  var n2c = Math.max(Math.min(n2Cap, 1 - o2c), 0);
+  return { o2: o2c, he: Math.max(1 - o2c - n2c, 0) };
 }
 function travelAt(pabs, o2, he, o2bopRatio, n2bopRatio) {
   var n2 = 100 - o2 - he, ppn2 = n2 / 100 * pabs, hasBo = o2bopRatio > 0;
@@ -214,19 +296,23 @@ function boSwitchStatus(v) { return v < 0.5 ? 'danger' : v > 1.6 ? 'warn' : 'ok'
 function travelPpo2Status(v) { return v > 1.7 ? 'danger' : v > 1.61 ? 'warn' : 'ok'; }
 
 /* Déco */
+/* Déco proposée : PPO2 du travel au changement de 0.5 à 0.8, écart relatif de N2 ≤ 25 % */
+var DECO_TRAV_PPO2_MAX = 0.8, DECO_TRAV_PPO2_MIN = 0.5, DECO_DN2_MAX = 0.25;
+function decoPctStatus(v) { return v > DECO_DN2_MAX * 100 ? 'danger' : 'ok'; }
 function proposeDeco(o2Pct, hePct) {
   if (o2Pct <= 0) return null;
-  var n2tr = (100 - o2Pct - hePct) / 100;
+  var o2tr = o2Pct / 100, n2tr = (100 - o2Pct - hePct) / 100;
   if (n2tr < 0) return null;
-  var pabstrav = 0.8 / (o2Pct / 100);
-  var oxygen = 1.6 / pabstrav >= 0.9;
-  var n2deco = oxygen ? 0 : Math.min(1.15 * n2tr, ((n2tr * pabstrav) + 0.5) / pabstrav);
-  var o2deco = oxygen ? 1 : 1 - n2deco;
-  var pabsdeco = oxygen ? 1.6 : 1.6 / o2deco;
+  var pMax = DECO_TRAV_PPO2_MAX / o2tr, pMin = DECO_TRAV_PPO2_MIN / o2tr;      // switch le plus profond / le plus haut
+  var o2Needed = 1 - (1 + DECO_DN2_MAX) * n2tr;                                // O₂ déco ≥ 1 − 1.25·n2tr
+  var pCdi = o2Needed > 0 ? 1.6 / o2Needed : Infinity;
+  var p = Math.max(Math.min(pMax, pCdi), pMin);   // si 25 % est inatteignable : switch le plus haut (gaz le plus riche)
+  var o2deco = Math.min(Math.max(1.6 / p, 0.21), 1.0);   // gaz le plus riche à cette profondeur (PPO2 1.6), O₂ pur sous 6 m
+  var n2deco = 1 - o2deco, pabsdeco = 1.6 / o2deco;
   return { o2: o2deco, n2: n2deco, profondeur: (pabsdeco - 1) * 10,
            cdi: n2deco * pabsdeco - n2tr * pabsdeco,
            cdiPercent: n2tr > 0 ? (n2deco / n2tr - 1) * 100 : null,
-           ppo2Trav: pabsdeco * o2Pct / 100 };
+           ppo2Trav: pabsdeco * o2tr };
 }
 function decoTravStatus(v) { return v < 0.3 ? 'danger' : v < 0.5 ? 'warn' : 'ok'; }
 
@@ -282,18 +368,23 @@ function rrow(label, value, unit, s) {
 }
 function tile(t1, t2, t3) { return '<div class="tile"><div class="t1">' + t1 + '</div><div class="t2">' + t2 + '</div><div class="t3">' + t3 + '</div></div>'; }
 function hint(t) { return '<div class="hint">' + t + '</div>'; }
+function hintC(cls, t) { return '<div class="hint ' + cls + '">' + t + '</div>'; }
 
 /* ───────────── Construction de l'interface ───────────── */
 function h(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
 var FIELDS = {};
 var profError = false;
 
-function formatStep(v) { return v % 1 === 0 ? String(Math.trunc(v)) : v.toFixed(1); }
-function stepValue(current, delta, min, max) {
+function stepDecimals(step) { var s = String(step), i = s.indexOf('.'); return i < 0 ? 0 : s.length - i - 1; }
+function formatStep(v, step) {
+  var s = v.toFixed(Math.max(1, stepDecimals(step)));
+  return s.indexOf('.') >= 0 ? s.replace(/0+$/, '').replace(/\.$/, '') : s;   // 22.0 -> 22, 6.30 -> 6.3
+}
+function stepValue(current, delta, min, max, step, def) {
   var cur = dec(current);
   var clamp = function (v) { return Math.min(Math.max(v, min), max); };
-  if (cur == null) return formatStep(clamp(min + (delta > 0 ? delta : 0)));
-  return formatStep(clamp(cur + delta));
+  if (cur == null) return formatStep(clamp(def != null ? def + delta : min + (delta > 0 ? delta : 0)), step);
+  return formatStep(clamp(cur + delta), step);
 }
 
 function field(key, label, o) {
@@ -310,14 +401,16 @@ function field(key, label, o) {
   input.addEventListener('input', function () {
     S[key] = input.value;
     if (o.persist !== false) lsSet(key, input.value);
+    if (o.onUser) o.onUser();
     update();
   });
   input.addEventListener('focus', function () { setTimeout(function () { try { input.select(); } catch (e) {} }, 0); });
   input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
   input.addEventListener('blur', function () { if (o.onDone) o.onDone(); });
   function change(d) {
-    var next = stepValue(input.value, d, min, max);
+    var next = stepValue(input.value, d, min, max, step, o.def);
     input.value = next; S[key] = next; lsSet(key, next);
+    if (o.onUser) o.onUser();
     if (o.onStepped) o.onStepped();
     update();
   }
@@ -331,6 +424,10 @@ function field(key, label, o) {
   FIELDS[key] = { input: input };
   return wrap;
 }
+function setSrc(k, v) { S[k] = v; lsSet(k, v); }                      // provenance d'un choix : 'prop' ou 'perso'
+function resetDecoSrc() { S.decoSrc = ''; lsSet('decoSrc', ''); setSrc('trSrc', 'perso'); }   // modif manuelle : la Déco reprend le « Choix du Travel »
+function setInfo(el, text) { el.textContent = text; el.style.display = text ? '' : 'none'; }
+function gasLabel(o2, he) { var r = function (x) { return clean(Math.round(x * 10) / 10); }; return he < 0.05 ? 'NX ' + r(o2) : 'TX ' + r(o2) + ' / ' + r(he); }
 function setField(key, v) { S[key] = v; lsSet(key, v); FIELDS[key].input.value = v; update(); }
 
 var pageEls = [], root = document.getElementById('pages');
@@ -372,13 +469,19 @@ var B = {};          // boutons
       FIELDS.prof.input.classList.toggle('err', profError); update();
     } })));
   D.dilProf = c1.dyn();
-  var c2 = newCard(p, '🐋 Diluant proposé', 'var(--accent)'); D.dilAuto = c2.dyn();
+  var c2 = newCard(p, '🐋 Diluant proposé', 'var(--accent)');
+  c2.add(h('div', 'hint pre lh', 'Choisir la valeur voulue pour: \nla PPO2, la Prof, la Densité max désirée '));
+  c2.add(frow('row2', field('dPpo2', 'PPO₂ (bar)', { step: 0.01, min: 0.8, max: 1.3, def: 1 }), field('dPea', 'PROF EQ MAX (m)', { min: 20, max: 40, def: 30 })));
+  c2.add(frow('rowc', field('dDens', 'DENS MAX (g/L)', { step: 0.1, min: 5, max: 6.8, w: 200, def: 6.1 })));
+  D.dilAuto = c2.dyn();
   var c3 = newCard(p, '✍️ Choix du diluant', 'var(--result)');
-  c3.add(frow('row2', field('dilO2', 'O₂ %'), field('dilHe', 'He %')));
+  c3.add(frow('row2', field('dilO2', 'O₂ %', { onUser: function () { setSrc('dilSrc', 'perso'); } }), field('dilHe', 'He %', { onUser: function () { setSrc('dilSrc', 'perso'); } })));
   B.dil = c3.add(button('Utiliser le diluant proposé', function () {
     if (!M.autoUsable) return;
+    setSrc('dilSrc', 'prop');
     setField('dilO2', String(Math.round(M.autoM.o2))); setField('dilHe', String(Math.round(M.autoM.he)));
   }));
+  D.dilInfo = c3.add(h('div', 'hint ok'));
   D.dilChoice = c3.dyn();
   var c4 = newCard(p, 'Dans la boucle · SP ' + SETPOINT, 'var(--seafoam)'); D.dilLoop = c4.dyn();
 })();
@@ -387,13 +490,18 @@ var B = {};          // boutons
 var cardBoProp;
 (function () {
   var p = newPage('Bailout');
-  cardBoProp = newCard(p, '🫧 BO proposé', 'var(--accent)'); D.boProp = cardBoProp.dyn();
+  cardBoProp = newCard(p, '🫧 BO proposé', 'var(--accent)');
+  D.boSrc = cardBoProp.add(h('div', 'hint src'));
+  cardBoProp.add(frow('row2', field('boPea', 'PROF EQ MAX (m)', { min: 20, max: 34, def: 30 }), field('boDens', 'DENS MAX (g/L)', { step: 0.1, min: 5, max: 6.9, def: 6.3 })));
+  D.boProp = cardBoProp.dyn();
   var c = newCard(p, '✍️ Choix du Bailout', 'var(--result)');
-  c.add(frow('row2', field('boO2', 'O₂ %'), field('boHe', 'He %')));
+  c.add(frow('row2', field('boO2', 'O₂ %', { onUser: function () { setSrc('boSrc', 'perso'); } }), field('boHe', 'He %', { onUser: function () { setSrc('boSrc', 'perso'); } })));
   B.bo = c.add(button('Utiliser le BO proposé', function () {
     if (!M.proposedOk) return;
+    setSrc('boSrc', 'prop');
     setField('boO2', String(Math.round(M.proposed.o2))); setField('boHe', String(Math.round(M.proposed.he)));
   }));
+  D.boInfo = c.add(h('div', 'hint ok'));
   D.boChoice = c.dyn();
 })();
 
@@ -403,18 +511,23 @@ var cardTrProp;
   var p = newPage('Travel');
   cardTrProp = newCard(p, '🐠 Travel proposé', 'var(--accent)'); D.trProp = cardTrProp.dyn();
   var c = newCard(p, '✍️ Choix du Travel', 'var(--result)');
-  c.add(frow('row2', field('trO2', 'O₂ %'), field('trHe', 'He %')));
+  c.add(frow('row2', field('trO2', 'O₂ %', { onUser: resetDecoSrc }), field('trHe', 'He %', { onUser: resetDecoSrc })));
   B.tr = c.add(button('Utiliser le Travel proposé', function () {
     if (!M.proposal) return;
+    resetDecoSrc(); setSrc('trSrc', 'prop');
     setField('trO2', String(Math.round(M.proposal.o2 * 100))); setField('trHe', String(Math.round(M.proposal.he * 100)));
   }));
+  D.trInfo = c.add(h('div', 'hint ok'));
   D.trChoice = c.dyn();
   var c2 = newCard(p, '✍️ Choix SW du Travel', 'var(--seafoam)');
   c2.add(frow('rowc', field('swt', 'PROF-SW (m)', { max: 120, w: 200 })));
-  B.sw = c2.add(button('Utiliser la profondeur du Travel choisi', function () {
-    if (!M.atSw) return;
-    setField('swt', String(Math.round(M.atSw.depth)));
+  B.sw = c2.add(button('Utiliser le Travel proposé', function () {
+    if (!M.swGas || M.swtIn == null) return;
+    S.swO2 = String(Math.round(M.swGas.o2 * 100)); S.swHe = String(Math.round(M.swGas.he * 100)); S.decoSrc = String(Math.round(M.swtIn));
+    lsSet('swO2', S.swO2); lsSet('swHe', S.swHe); lsSet('decoSrc', S.decoSrc);
+    update();
   }));
+  D.swInfo = c2.add(h('div', 'hint ok'));
   D.trSw = c2.dyn();
 })();
 
@@ -424,11 +537,13 @@ var cardDecoProp;
   var p = newPage('Déco');
   cardDecoProp = newCard(p, '💨 Déco proposé', 'var(--accent)'); D.decoProp = cardDecoProp.dyn();
   var c = newCard(p, '✍️ Choix de la déco', 'var(--result)');
-  c.add(frow('rowc', field('decoO2', 'O₂ %', { w: 200 })));
-  B.deco = c.add(button('Utiliser la déco proposée', function () {
+  c.add(frow('rowc', field('decoO2', 'O₂ %', { w: 200, onUser: function () { setSrc('decoSel', 'perso'); } })));
+  B.deco = c.add(button('Utiliser le gaz proposé', function () {
     if (!M.decoProposal) return;
+    setSrc('decoSel', 'prop');
     setField('decoO2', String(Math.round(M.decoProposal.o2 * 100)));
   }));
+  D.decoInfo = c.add(h('div', 'hint ok'));
   D.decoChoice = c.dyn();
 })();
 
@@ -454,17 +569,18 @@ var cardDecoProp;
 (function () {
   var p = newPage('Calcul Sout');
   var cp = newCard(p, 'Paramètres', 'var(--c-param)');
-  cp.add(frow('row2', field('sProf', 'PROF', { color: 'var(--c-param)', max: 120 }), field('sConso', 'CONS', { color: 'var(--c-param)', max: 50 })));
-  cp.add(frow('row2', field('sTpsp', 'TPS. PROG', { color: 'var(--c-temps)', max: 30 }), field('sCs', 'C S', { color: 'var(--c-temps)', step: 0.1, max: 100 })));
-  cp.add(frow('rowc', field('sTpsr', 'TPS. R', { color: 'var(--c-temps)', max: 120, w: 200 })));
+  cp.add(frow('row2', field('sProf', 'PROF (m)', { color: 'var(--c-param)', max: 120 }), field('sConso', 'CONSO (L/min)', { color: 'var(--c-param)', max: 50 })));
+  cp.add(frow('row2', field('sTpsp', 'VIT. DÉP (m/min)', { color: 'var(--c-temps)', max: 30 }), field('sCs', 'COEF SÉCU', { color: 'var(--c-temps)', step: 0.1, max: 100 })));
+  cp.add(frow('rowc', field('sTpsr', 'TPS DEMI-TOUR (min)', { color: 'var(--c-temps)', max: 120, w: 200 })));
+  cp.add(h('div', 'hint pre sm', '✔Coef de sécu:\nrègle des 1/2 mettre 2 \nrègle des 1/3 mettre 1.5 \nrègle des 1/4 mettre 1.33'));
   var c1 = newCard(p, 'Je détermine le Tps et la Dist', 'var(--accent)');
-  c1.add(frow('rowc', field('sVol', 'VOL', { color: 'var(--c-vol)', max: 9000, w: 200 })));
+  c1.add(frow('rowc', field('sVol', 'VOL (L)', { color: 'var(--c-vol)', max: 9000, w: 200 })));
   D.sout1 = c1.dyn();
   var c2 = newCard(p, 'Je détermine le Tps et le Vol', 'var(--result)');
-  c2.add(frow('rowc', field('sDist', 'DIST', { color: 'var(--c-dist)', step: 10, max: 5000, w: 200 })));
+  c2.add(frow('rowc', field('sDist', 'DIST (m)', { color: 'var(--c-dist)', step: 10, max: 5000, w: 200 })));
   D.sout2 = c2.dyn();
   var c3 = newCard(p, 'Je détermine le Vol des blocs', 'var(--seafoam)');
-  c3.add(frow('rowc', field('sPb', 'PRESS', { color: 'var(--c-dist)', step: 10, max: 340, w: 200 })));
+  c3.add(frow('rowc', field('sPb', 'PRESS (bar)', { color: 'var(--c-dist)', step: 10, max: 340, w: 200 })));
   D.sout3 = c3.dyn();
 })();
 
@@ -492,7 +608,7 @@ function switchAlerts(o2Text, o2In, heIn, at, cdiPct) {
 function switchResults(at, n2, cdiPct, cdiLabel, swMode) {
   var s = '';
   s += pair('PEA', at ? fo(at.pea, 2) : '--', ' m', at ? LIM.pea(at.pea) : 'ok',
-            'PPO₂ BO', at && at.ppo2Bo != null ? f(at.ppo2Bo, 2) : '--', ' bar', at && at.ppo2Bo != null ? boSwitchStatus(at.ppo2Bo) : 'ok');
+            'PPO₂ BO SW', at && at.ppo2Bo != null ? f(at.ppo2Bo, 2) : '--', ' bar', at && at.ppo2Bo != null ? boSwitchStatus(at.ppo2Bo) : 'ok');
   s += pair('N₂', at ? f(n2, 1) : '--', ' %', 'ok', 'PPN₂', at ? f(at.ppn2, 2) : '--', ' bar', 'ok');
   var cdiV = at && at.cdi != null ? f(at.cdi, 2) : '--', cdiS = at && at.cdi != null ? LIM.cdiPpn2(at.cdi) : 'ok';
   var pctV = cdiPct != null ? f(cdiPct, 2) : '--', pctS = cdiPct != null ? LIM.cdiPercent(cdiPct) : 'ok';
@@ -504,7 +620,8 @@ function switchResults(at, n2, cdiPct, cdiLabel, swMode) {
     s += dens;
   } else {
     s += pair(cdiLabel, cdiV, ' bar', cdiS, 'CDI diff % N₂', pctV, ' %', pctS);
-    s += rrow('Prof SW', at ? f(at.depth, 1) : '--', ' m', 'ok');
+    s += pair('Prof SW', at ? f(at.depth, 1) : '--', ' m', 'ok',
+              'PPO₂ Travel', at ? f(at.ppo2Travel, 2) : '--', ' bar', at ? travelPpo2Status(at.ppo2Travel) : 'ok');
     s += dens;
   }
   return s;
@@ -513,7 +630,9 @@ function switchResults(at, n2, cdiPct, cdiLabel, swMode) {
 function update() {
   /* ── Diluant ── */
   var profondeur = nz(dec(S.prof)), pabs = 1 + profondeur / 10;
-  var autoM = autoDil(pabs), autoUsable = profondeur > 0 && autoM.he >= 0;
+  var ppo2Dil = clampv(dec(S.dPpo2), 0.8, 1.3, 1.0), densDil = clampv(dec(S.dDens), 5, 6.8, AUTO_MAX_DENS), peaEq = clampv(dec(S.dPea), 20, 40, 30);
+  var airZone = profondeur > 0 && profondeur <= 40;     // 1–40 m : air, sans calcul
+  var autoM = airZone ? build(21, 0, 79, pabs) : autoDil(pabs, ppo2Dil, peaEq, densDil), autoUsable = profondeur > 0 && autoM.he >= 0;
   var o2V = dec(S.dilO2), heV = dec(S.dilHe);
   var dil = (o2V != null && heV != null) ? mix(o2V, heV, pabs) : null;
   var boucle = dil ? loopMix(dil, pabs) : null;
@@ -522,18 +641,19 @@ function update() {
 
   D.dilProf.innerHTML = profError ? alertB('Profondeur entre 20 et 120 m requise') : '';
   if (autoUsable) {
-    D.dilAuto.innerHTML = mixHead(f(autoM.o2, 1), f(autoM.he, 1), 'var(--accent)', 'MÉLANGE PROPOSÉ') +
-      pair('Densité', f(autoM.densite, 2), ' g/L', LIM.densite(autoM.densite), 'N₂', f(autoM.n2, 1), ' %', 'ok');
+    D.dilAuto.innerHTML = (airZone ? resultBox('NX 21', 'var(--accent)', 'MÉLANGE PROPOSÉ · AIR') : mixHead(f(autoM.o2, 1), f(autoM.he, 1), 'var(--accent)', 'MÉLANGE PROPOSÉ')) +
+      pair('Densité', f(autoM.densite, 2), ' g/L', LIM.densite(autoM.densite), 'N₂', f(autoM.n2, 1), ' %', 'ok') +
+      (airZone ? hint('Profondeur ≤ 40 m : air, sans calcul') : autoM.n2 < 100 * ppn2ForPea(peaEq) / pabs - 0.05 ? hint('N₂ réduit pour limiter la densité à ' + f(densDil, 2) + ' g/L (PEA inférieure à ' + f(peaEq, 0) + ' m)') : '');
   } else {
     D.dilAuto.innerHTML = mixHead('--', '--', 'var(--label)', 'MÉLANGE PROPOSÉ') +
-      (profondeur > 0 ? hint('Diluant auto non applicable pour une profondeur inférieure à ~' + f(AUTO_MIN_DEPTH, 0) + ' m') : '');
+      (profondeur > 0 ? hint('Diluant auto non applicable pour une profondeur inférieure à ~' + f(autoMinDepth(ppo2Dil, peaEq), 0) + ' m') : '');
   }
   B.dil.disabled = !autoUsable;
+  setInfo(D.dilInfo, dil ? '✔Choix validé : diluant ' + (S.dilSrc === 'prop' ? 'proposé:' : 'perso:') + ' \n(' + gasLabel(dil.o2, dil.he) + ')' : '');
 
   var al = '';
   if (o2V != null && o2V < 5) al += alertB('O₂ inférieur à 5 %');
   if (o2V != null && o2V > 50) al += alertB('O₂ supérieur à 50 %');
-  if (heV != null && heV < 2) al += alertB('He inférieur à 2 % : à vérifier');
   if (o2V != null && heV != null && o2V + heV > 100) al += alertB('O₂ + He dépasse 100 % (' + f(o2V + heV, 2) + ' %)');
   if (dil && dil.ppo2 > 1.0) al += alertB('PPO₂ du diluant élevée', 'warn');
   D.dilChoice.innerHTML = al +
@@ -551,9 +671,11 @@ function update() {
   var hasDepth = pabs > 1.0;
   var n2DilFraction = pabs > 0 ? ppn2Dil / pabs : 0;
   function cdiPercent(n2) { return n2DilFraction > 0 ? (n2 / (n2DilFraction * 100) - 1) * 100 : null; }
-  var o2Prop = 1.6 / pabs * 100, n2Prop = 3.16 / pabs * 100;
-  var proposed = hasDepth ? build(o2Prop, 100 - o2Prop - n2Prop, n2Prop, pabs) : null;
-  var proposedOk = proposed != null && proposed.he >= 0;
+  var peaMax = clampv(dec(S.boPea), 20, BO_PEA_MAX, 30);
+  var densMax = clampv(dec(S.boDens), 5, BO_DENS_MAX, 6.3);
+  var boNxZone = hasDepth && profondeur <= 40;           // 1–40 m : NX 32, sans calcul
+  var proposed = boNxZone ? build(32, 0, 68, pabs) : hasDepth ? bailoutProposed(pabs, ppn2Dil, ppn2Boucle, peaMax, densMax) : null;
+  var proposedOk = proposed != null;
   var cdiProposed = proposedOk ? cdiPercent(proposed.n2) : null;
   M.proposed = proposed; M.proposedOk = proposedOk;
   var boO2 = dec(S.boO2), boHe = dec(S.boHe);
@@ -564,21 +686,23 @@ function update() {
 
   cardBoProp.setTitle('🫧 BO proposé pour ' + f(profondeur, 0) + ' m');
   if (proposedOk) {
-    D.boProp.innerHTML = mixHead(f(proposed.o2, 1), f(proposed.he, 1), 'var(--accent)', 'BAILOUT PROPOSÉ') +
+    D.boProp.innerHTML = (proposed.he < 0.005 ? resultBox('NX ' + f(proposed.o2, 1), 'var(--accent)', 'BAILOUT PROPOSÉ') : mixHead(f(proposed.o2, 1), f(proposed.he, 1), 'var(--accent)', 'BAILOUT PROPOSÉ')) +
+      (boNxZone ? hint('Profondeur ≤ 40 m : NX 32, sans calcul') : '') +
       pair('Densité', f(proposed.densite, 2), ' g/L', LIM.densite(proposed.densite), 'N₂', f(proposed.n2, 1), ' %', 'ok') +
       (cdiProposed != null && cdiProposed > 9 ? rrow('CDI diff % N₂', f(cdiProposed, 2), ' %', LIM.cdiPercent(cdiProposed)) : '') +
       (cdiProposed != null && cdiProposed > 19 ? alertB('Diff % N₂ : choix du diluant à revoir ?', 'warn') : '');
   } else {
     D.boProp.innerHTML = mixHead('--', '--', 'var(--label)', 'BAILOUT PROPOSÉ') +
       hint(!hasDepth ? 'Saisis d\'abord la profondeur dans l\'écran Diluant.'
-           : 'BO auto non applicable pour une profondeur inférieure à ~' + f(BAILOUT_MIN_DEPTH, 0) + ' m');
+           : 'BO auto non applicable à cette profondeur');
   }
   B.bo.disabled = !proposedOk;
+  setInfo(D.boInfo, bo ? '✔Choix validé : BO ' + (S.boSrc === 'prop' ? 'proposé:' : 'perso:') + ' \n(' + gasLabel(bo.o2, bo.he) + ')' : '');
+  setInfo(D.boSrc, (dil && ppn2Dil > 0) ? 'Source Diluant: ' + gasLabel(dil.o2, dil.he) + ' ' : '');
 
   al = '';
   if (boO2 != null && boO2 < 5) al += alertB('O₂ inférieur à 5 %');
   if (boO2 != null && boO2 > 50) al += alertB('O₂ supérieur à 50 %');
-  if (boHe != null && boHe < 2) al += alertB('He inférieur à 2 % : à vérifier');
   if (boO2 != null && boHe != null && boO2 + boHe > 100) al += alertB('O₂ + He dépasse 100 % (' + f(boO2 + boHe, 2) + ' %)');
   if (bo) {
     if (bo.ppo2 > 1.6) al += alertB('PPO₂ du bailout supérieure à 1.6');
@@ -601,22 +725,24 @@ function update() {
   /* ── Travel ── */
   var o2bopPct = nz(dec(S.boO2)), n2bopPct = bo ? bo.n2 : 0;
   var o2bopRatio = o2bopPct / 100, n2bopRatio = n2bopPct / 100, hasBo = o2bopRatio > 0;
-  var proposal = proposeTravel(o2bopPct, n2bopPct);
+  var proposal = proposeTravel(profondeur, o2bopPct, n2bopPct);
   M.proposal = proposal;
+  var trSrcHint = hasBo ? hintC('src', 'Source BO: ' + gasLabel(o2bopPct, nz(dec(S.boHe))) + ' ') : '';
   cardTrProp.setTitle(proposal ? '🐠 Trav proposé à ' + f(proposal.profondeur, 1) + ' m' : '🐠 Travel proposé');
   if (proposal) {
     var pct = proposal.cdiPercent;
-    D.trProp.innerHTML =
+    D.trProp.innerHTML = trSrcHint +
       resultBox(proposal.isNx ? 'NX ' + f(proposal.o2 * 100, 1) : 'TX ' + f(proposal.o2 * 100, 1) + ' / ' + f(proposal.he * 100, 1), 'var(--accent)', 'TRAVEL PROPOSÉ') +
       (pabs > 1 && o2bopRatio * pabs > 1.61 ? alertB('PPO₂ du BO supérieure à 1.61 bar') : '') +
-      pair('PPO₂ BO au Sw', f(proposal.ppo2Bo, 2), ' bar', boSwitchStatus(proposal.ppo2Bo), 'N₂', f(proposal.n2 * 100, 1), ' %', 'ok') +
-      pair(proposal.isNx ? 'Δ PPN₂' : 'CDI', f(proposal.cdi, 2), ' bar', LIM.cdiPpn2(proposal.cdi),
-           'CDI diff % N₂', fo(pct, 2), ' %', st(pct, LIM.cdiPercent)) +
+      pair('PPO₂ BO SW', fo(proposal.ppo2Bo, 2), ' bar', st(proposal.ppo2Bo, boSwitchStatus), 'N₂', f(proposal.n2 * 100, 1), ' %', 'ok') +
+      pair(proposal.isNx ? 'Δ PPN₂' : 'CDI', fo(proposal.cdi, 2), ' bar', st(proposal.cdi, LIM.cdiPpn2),
+           'CDI diff % N₂', fo(pct, 2), ' %', (pct != null && pct > TR.dn2Max * 100) ? 'danger' : 'ok') +
       rrow('Densité', f(proposal.densite, 2), ' g/L', LIM.densite(proposal.densite)) +
-      (pct != null && pct > 19 ? alertB('Diff % N₂ : choix du BO à revoir ?', 'warn') : '');
+      (pct != null && pct > TR.dn2Max * 100 ? alertB('Diff % N₂ : choix du BO à revoir ?', 'warn') : '') +
+      hint(proposal.zone);
   } else {
-    D.trProp.innerHTML = resultBox('--', 'var(--label)', 'TRAVEL PROPOSÉ') +
-      hint(!hasBo ? 'Choisis d\'abord un bailout dans l\'écran Bailout.' : 'Pas de travel proposé pour ce bailout (switch en surface).');
+    D.trProp.innerHTML = trSrcHint + resultBox('--', 'var(--label)', 'TRAVEL PROPOSÉ') +
+      hint(!(profondeur > 0) ? 'Saisis d\'abord la profondeur dans l\'écran Diluant.' : !hasBo ? 'Choisis d\'abord un bailout dans l\'écran Bailout.' : 'Pas de travel possible dans les limites (CDI 0.5 bar, écart N₂ 25 %).');
   }
   B.tr.disabled = !proposal;
 
@@ -628,30 +754,52 @@ function update() {
   var chosenText = !valid ? '--' : heIn === 0 ? 'NX ' + clean(o2In) : 'TX ' + clean(o2In) + ' / ' + clean(heIn);
   var atSw = valid ? travelAt(1.6 / (o2In / 100), o2In, heIn, o2bopRatio, n2bopRatio) : null;
   var swtIn = dec(S.swt);
-  var atSwt = (valid && swtIn != null && swtIn > 0) ? travelAt(swtIn / 10 + 1, o2In, heIn, o2bopRatio, n2bopRatio) : null;
+  var swGas = swtIn != null ? proposeTravelAt(profondeur, swtIn, o2bopPct, n2bopPct) : null;
+  var swO2 = swGas ? swGas.o2 * 100 : 0, swHe = swGas ? swGas.he * 100 : 0, swN2 = 100 - swO2 - swHe;
+  var atSwt = swGas ? travelAt(swtIn / 10 + 1, swO2, swHe, o2bopRatio, n2bopRatio) : null;
+  var swCdiPct = (atSwt && n2bopPct > 0) ? ((swN2 / n2bopPct) - 1) * 100 : null;
+  var swCdiLabel = swHe < 0.5 ? 'Δ PPN₂' : 'CDI';
+  var r1 = function (x) { return Math.round(x * 10) / 10; };
+  var swText = !swGas ? '--' : swHe < 0.5 ? 'NX ' + clean(r1(swO2)) : 'TX ' + clean(r1(swO2)) + ' / ' + clean(r1(swHe));
+  var swMsg = !(profondeur > 0) ? 'Saisis d\'abord la profondeur dans l\'écran Diluant.'
+    : (swtIn == null || swtIn <= 0) ? 'Saisis la profondeur du switch.'
+    : swtIn > SW_DEPTH_MAX ? ''
+    : (profondeur > TR.bMax && !hasBo) ? 'Choisis d\'abord un bailout dans l\'écran Bailout.'
+    : 'Pas de travel possible à cette profondeur dans les limites (PPO₂ 1.4–1.6, CDI 0.5 bar, écart N₂ 25 %).';
+  M.swGas = swGas; M.swtIn = swtIn;
   M.atSw = atSw;
-  B.sw.disabled = !atSw;
+  B.sw.disabled = !swGas;
   D.trChoice.innerHTML = switchAlerts(S.trO2, o2In, heIn, atSw, cdiPct) +
     resultBox(chosenText, 'var(--result)', 'TRAVEL CHOISI · SWITCH PPO₂ 1.6') +
     switchResults(atSw, n2In, cdiPct, cdiLabel, false);
-  D.trSw.innerHTML = switchAlerts(S.trO2, o2In, heIn, atSwt, cdiPct) +
-    resultBox(chosenText, 'var(--seafoam)', swtIn != null && swtIn > 0 ? 'TRAVEL CHOISI · SWITCH À ' + f(swtIn, 0) + ' m' : 'TRAVEL CHOISI') +
-    switchResults(atSwt, n2In, cdiPct, cdiLabel, true);
+  var decoSwLabel = dec(S.swHe) > 0 ? 'TX ' + clean(nz(dec(S.swO2))) + ' / ' + clean(nz(dec(S.swHe))) : 'NX ' + clean(nz(dec(S.swO2)));
+  D.trSw.innerHTML =
+    (swtIn != null && swtIn > SW_DEPTH_MAX ? alertB('Profondeur de switch limitée à ' + SW_DEPTH_MAX + ' m') : '') +
+    switchAlerts(swGas ? 'x' : '', swO2, swHe, atSwt, swCdiPct) +
+    resultBox(swText, 'var(--seafoam)', (swtIn != null && swtIn > 0 && swtIn <= SW_DEPTH_MAX) ? 'TRAVEL PROPOSÉ · SWITCH À ' + f(swtIn, 0) + ' m' : 'TRAVEL PROPOSÉ') +
+    ((!swGas && swMsg) ? hint(swMsg) : '') +
+    switchResults(atSwt, swN2, swCdiPct, swCdiLabel, true);
+  var trInfoTxt = S.decoSrc !== '' ? '✔Choix validé : Travel du SW à ' + S.decoSrc + ' m: \n(' + decoSwLabel + ')'
+    : valid ? (S.trSrc === 'prop' ? '✔Choix validé : Travel proposé: \n(' + chosenText + ')' : '✔Choix validé : Travel Perso: \n(' + chosenText + ')') : '';
+  setInfo(D.trInfo, trInfoTxt); setInfo(D.swInfo, trInfoTxt);
 
   /* ── Déco ── */
-  var o2trPct = nz(dec(S.trO2)), hetrPct = nz(dec(S.trHe)), n2trPct = 100 - o2trPct - hetrPct;
+  var fromSw = S.decoSrc !== '';       // travel du « Choix SW » si le bouton y a été utilisé, sinon « Choix du Travel »
+  var o2trPct = nz(dec(fromSw ? S.swO2 : S.trO2)), hetrPct = nz(dec(fromSw ? S.swHe : S.trHe)), n2trPct = 100 - o2trPct - hetrPct;
   var hasTravel = o2trPct > 0 && n2trPct >= 0;
+  var travelTxt = hetrPct === 0 ? 'NX ' + clean(o2trPct) : 'TX ' + clean(o2trPct) + ' / ' + clean(hetrPct);
+  var decoTravHint = hasTravel ? hintC('src', 'Source Travel : ' + travelTxt + ' ' + (fromSw ? '(SW à ' + S.decoSrc + ' m)' : '')) : '';
   var dp = proposeDeco(o2trPct, hetrPct);
   M.decoProposal = dp;
   cardDecoProp.setTitle(dp ? '💨 Déco proposé ' + f(dp.profondeur, 0) + ' m' : '💨 Déco proposé');
   if (dp) {
     var dpct = dp.cdiPercent;
-    D.decoProp.innerHTML = resultBox('NX ' + f(dp.o2 * 100, 1), 'var(--accent)', 'DÉCO PROPOSÉE') +
-      (dpct != null && dpct > 19 ? alertB('Diff % N₂ : choix du Travel à revoir ?', 'warn') : '') +
-      pair('N₂', f(dp.n2 * 100, 2), ' %', 'ok', 'Δ PPN₂', f(dp.cdi, 2), ' bar', LIM.cdiPpn2(dp.cdi)) +
-      pair('PPO₂ Trav au SW', f(dp.ppo2Trav, 2), ' bar', decoTravStatus(dp.ppo2Trav), 'CDI diff % N₂', fo(dpct, 2), ' %', st(dpct, LIM.cdiPercent));
+    D.decoProp.innerHTML = decoTravHint + resultBox('NX ' + f(dp.o2 * 100, 0), 'var(--accent)', 'DÉCO PROPOSÉE') +
+      (dpct != null && dpct > DECO_DN2_MAX * 100 ? alertB('Diff % N₂ critique : vérifiez la cohérence du mélange', 'warn') : '') +
+      pair('N₂', f(dp.n2 * 100, 1), ' %', 'ok', 'Δ PPN₂', f(dp.cdi, 2), ' bar', LIM.cdiPpn2(dp.cdi)) +
+      pair('PPO₂ Trav au SW', f(dp.ppo2Trav, 2), ' bar', decoTravStatus(dp.ppo2Trav), 'CDI diff % N₂', fo(dpct, 1), ' %', st(dpct, decoPctStatus));
   } else {
-    D.decoProp.innerHTML = resultBox('--', 'var(--label)', 'DÉCO PROPOSÉE') + hint('Choisis d\'abord un Travel dans l\'écran Travel.');
+    D.decoProp.innerHTML = decoTravHint + resultBox('--', 'var(--label)', 'DÉCO PROPOSÉE') + hint('Configurez un gaz de Travel pour obtenir une suggestion.');
   }
   B.deco.disabled = !dp;
   var dO2 = nz(dec(S.decoO2)), dValid = dO2 > 0 && dO2 <= 100, dN2 = 100 - dO2;
@@ -660,12 +808,12 @@ function update() {
   var cdiSw = (dValid && hasTravel) ? (dN2 / 100) * pabsSw - (n2trPct / 100) * pabsSw : null;
   var dCdiPct = (dValid && n2trPct > 0) ? (dN2 / n2trPct - 1) * 100 : null;
   D.decoChoice.innerHTML =
-    (nz(cdiSw) > 0.5 ? alertB('Alerte CDI supérieure à 0.5 bar') : '') +
-    (dCdiPct != null && dCdiPct > 19 ? alertB('Diff % N₂ : choix du Travel ou de la Déco à revoir ?', 'warn') : '') +
+    (nz(cdiSw) > 0.5 ? alertB('Attention : Augmentation PPN₂ > 0.5 bar') : '') +
     resultBox(dValid ? 'NX ' + clean(dO2) : '--', 'var(--result)', 'DÉCO CHOISIE') +
-    pair('Prof SW', dValid ? f(profSw, 2) : '--', ' m', 'ok', 'N₂', dValid ? f(dN2, 0) : '--', ' %', 'ok') +
+    pair('Prof SW', dValid ? f(profSw, 1) : '--', ' m', 'ok', 'N₂', dValid ? f(dN2, 0) : '--', ' %', 'ok') +
     pair('PPO₂ Travel SW', fo(ppo2TravSw, 2), ' bar', st(ppo2TravSw, decoTravStatus), 'Δ PPN₂', fo(cdiSw, 2), ' bar', st(cdiSw, LIM.cdiPpn2)) +
-    rrow('CDI diff % N₂', fo(dCdiPct, 2), ' %', st(dCdiPct, LIM.cdiPercent));
+    rrow('CDI diff % N₂', fo(dCdiPct, 1), ' %', st(dCdiPct, decoPctStatus));
+  setInfo(D.decoInfo, dValid ? '✔Choix validé : déco ' + (S.decoSel === 'prop' ? 'proposée:' : 'perso:') + ' \n(NX ' + clean(dO2) + ')' : '');
 
   /* ── Mix Gaz ── */
   var injDefault = S.injO2.trim() === '' && S.injHe.trim() === '';
@@ -716,7 +864,7 @@ function update() {
 }
 
 /* ───────────── Onglets ───────────── */
-var TABS = ['Dil', 'BO', 'Trav', 'Déco', 'MG', 'Sout'];
+var TABS = ['Dil', 'BO', 'Trav', 'Déco', 'Mix-G', 'Sout'];
 var tabsEl = document.getElementById('tabs'), ind = document.getElementById('ind'), tabBtns = [];
 TABS.forEach(function (t, i) {
   var b = h('button'); b.type = 'button'; b.textContent = t; b.setAttribute('role', 'tab');
