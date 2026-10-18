@@ -1,6 +1,6 @@
 // Service worker : l'appli fonctionne hors connexion après la première ouverture.
 // Pour publier une mise à jour, change VERSION (ex. 'ccr-v2') : l'ancien cache est supprimé.
-const VERSION = 'ccr-v15';
+const VERSION = 'ccr-v16';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
