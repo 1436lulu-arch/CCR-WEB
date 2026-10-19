@@ -228,7 +228,7 @@ function loopMix(dil, pabs) {
 
 /* Travel */
 /* Travel proposé : règles par zone de profondeur de plongée */
-var TR = { aMax: 40, bMax: 75, aO2: 0.32, bO2Min: 50, ppo2Max: 1.6, ppo2Min: 1.4, cdiMax: 0.5, dn2Max: 0.25, depthMax: 45, boSwPpo2: 0.5, n2MaxPts: 0.04 };   // zone 76–120 m : switch le plus haut (PPO₂ BO 0.5), N₂ ≤ BO + 4 points
+var TR = { aMax: 40, bMax: 75, aO2: 0.32, bO2Min: 50, ppo2Max: 1.6, ppo2Min: 1.4, cdiMax: 0.5, dn2Max: 0.25, depthMax: 45, boSwPpo2: 0.5, n2MaxPts: 0.04, swMinDepth: 40 };   // zone 76–120 m : switch le plus haut (PPO₂ BO 0.5), N₂ ≤ BO + 4 points
 function proposeTravel(profondeur, o2bopPct, n2bopPct) {
   if (!(profondeur > 0)) return null;
   var o2bop = o2bopPct / 100, n2bop = n2bopPct / 100, hasBo = o2bop > 0;
@@ -249,9 +249,9 @@ function proposeTravel(profondeur, o2bopPct, n2bopPct) {
     }
     if (!found) return null;
   } else {                                        // 76–120 m : le plus de N₂ possible, hélium en complément
-    zone = 'Zone 76–120 m : PPO₂ 1.4–1.6, PPO₂ BO ≥ 0.5, N₂ ≤ BO + 4 pts, CDI ≤ 0.5 bar, écart N₂ ≤ 25 %, switch ≤ 45 m';
+    zone = 'Zone 76–120 m : PPO₂ 1.4–1.6, PPO₂ BO ≥ 0.5, N₂ ≤ BO + 4 pts, CDI ≤ 0.5 bar, écart N₂ ≤ 25 %, switch de 40 à 45 m';
     if (!hasBo) return null;
-    var p2 = Math.min(TR.boSwPpo2 / o2bop, pCap);
+    var p2 = Math.min(Math.max(TR.boSwPpo2 / o2bop, TR.swMinDepth / 10 + 1), pCap);   // jamais au-dessus de 40 m, au plus profond 45 m
     if (p2 <= 1.0) return null;
     var o2Pref = TR.ppo2Max / p2, o2Min = TR.ppo2Min / p2;
     if (o2Min > 1.0) return null;
