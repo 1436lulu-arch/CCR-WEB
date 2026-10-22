@@ -60,11 +60,11 @@ body {
 .nav-in { position: relative; display: flex; width: 100%; max-width: 560px; margin: 0 auto; }
 .nav button {
   flex: 1; height: 52px; border: 0; background: none; color: var(--tab); cursor: pointer;
-  font: 500 12px/1 inherit; font-family: inherit; letter-spacing: 1.2px; text-transform: uppercase;
+  font: 500 11px/1 inherit; font-family: inherit; letter-spacing: .8px; text-transform: uppercase;
   -webkit-tap-highlight-color: transparent;
 }
 .nav button[aria-selected="true"] { color: var(--tab-on); font-weight: 900; }
-.ind { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(100% / 6); padding: 0 12px; transition: transform .25s ease; pointer-events: none; }
+.ind { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(100% / 8); padding: 0 12px; transition: transform .25s ease; pointer-events: none; }
 .ind::after { content: ""; display: block; height: 100%; background: var(--accent); border-radius: 4px 4px 0 0; }
 main { max-width: 560px; margin: 0 auto; padding: 16px; }
 .page { display: none; flex-direction: column; gap: 20px; }
@@ -120,6 +120,30 @@ main { max-width: 560px; margin: 0 auto; padding: 16px; }
 .hint.pre { white-space: pre-line; }
 .hint.lh { line-height: 20px; }
 .hint.sm { font-size: 13px; line-height: 16px; }
+/* Plan de gonflage */
+.gblock { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--card-b); }
+.gblock:first-of-type { border-top: 0; padding-top: 0; }
+.gb-h { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 800; color: var(--violet); }
+.sw { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: var(--label); font: 700 12px/1 inherit; font-family: inherit; cursor: pointer; padding: 4px; -webkit-tap-highlight-color: transparent; }
+.sw[aria-checked="true"] { color: var(--seafoam); }
+.swk { position: relative; width: 40px; height: 22px; border-radius: 11px; background: var(--step); border: 1px solid var(--input-b); transition: background .15s; }
+.swk::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--label); transition: transform .15s, background .15s; }
+.sw[aria-checked="true"] .swk { background: color-mix(in srgb, var(--seafoam) 35%, transparent); }
+.sw[aria-checked="true"] .swk::after { transform: translateX(18px); background: var(--seafoam); }
+.prow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--card-b); }
+.prow:first-child { border-top: 0; }
+.pn { width: 22px; font-size: 16px; font-weight: 700; color: var(--label); }
+.pl { flex: 1; font-size: 15px; font-weight: 600; }
+.pa { text-align: right; display: flex; flex-direction: column; }
+.pa b { font-size: 18px; font-weight: 900; color: var(--accent); }
+.pa span { font-size: 14px; font-weight: 700; color: var(--result); }
+.prow.off .pl, .prow.off .pa b, .prow.off .pa span { color: var(--label); font-weight: 500; }
+.hl { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid var(--card-b); }
+.hl:first-child { border-top: 0; }
+.hl-t { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: 700; }
+.hl-t i { font-style: normal; font-size: 12px; font-weight: 700; color: var(--seafoam); }
+.hl.bad .hl-t { color: var(--label); }
+.hl.bad .hl-t i { color: var(--warn); }
 </style>
 </head>
 <body>
@@ -135,6 +159,7 @@ var KEY = 'ccr1:';
 function lsGet(k) { try { return localStorage.getItem(KEY + k) || ''; } catch (e) { return ''; } }
 function lsSet(k, v) { try { localStorage.setItem(KEY + k, v); } catch (e) {} }
 var NAMES = ['prof','dilO2','dilHe','boO2','boHe','trO2','trHe','swt','decoO2','injO2','injHe','tgO2','tgHe','c1','c2','heli',
+             'gBo2','gBhe','gBbar','gTo2','gThe','gTbar','gTxO2','gTxHe','gNxO2','gNxHe','gHpO2','gHpHe','gAirO2','gAirHe','gHeli','gTxOn','gNxOn','gHpOn','gO2On',
              'sProf','sConso','sTpsp','sCs','sTpsr','sVol','sDist','sPb','boPea','boDens','dPpo2','dDens','dPea','decoSrc','swO2','swHe','trSrc','dilSrc','decoSel','boSrc'];
 var S = {};
 NAMES.forEach(function (n) { S[n] = lsGet(n); });
@@ -143,6 +168,8 @@ if (S.boDens === '') S.boDens = '6.3';
 if (S.dPpo2 === '') S.dPpo2 = '1';      // réglages du diluant proposé (valeurs par défaut)
 if (S.dDens === '') S.dDens = '6.1';
 if (S.dPea === '') S.dPea = '30';
+var GF_DEFAULTS = { gTxO2: '10', gTxHe: '70', gNxO2: '32', gNxHe: '0', gHpO2: '0', gHpHe: '100', gAirO2: '20.95', gAirHe: '0', gHeli: '10', gTxOn: '1', gNxOn: '1', gHpOn: '1', gO2On: '1' };
+Object.keys(GF_DEFAULTS).forEach(function (k) { if (S[k] === '') S[k] = GF_DEFAULTS[k]; });   // plan de gonflage : gaz dispo par défaut
 
 //<calc>
 /* ───────────── Outils de calcul ───────────── */
@@ -228,7 +255,7 @@ function loopMix(dil, pabs) {
 
 /* Travel */
 /* Travel proposé : règles par zone de profondeur de plongée */
-var TR = { aMax: 40, bMax: 75, aO2: 0.32, bO2Min: 50, ppo2Max: 1.6, ppo2Min: 1.4, cdiMax: 0.5, dn2Max: 0.25, depthMax: 45, boSwPpo2: 0.5, n2MaxPts: 0.04, swMinDepth: 40 };   // zone 76–120 m : switch le plus haut (PPO₂ BO 0.5), N₂ ≤ BO + 4 points
+var TR = { aMax: 40, bMax: 75, aO2: 0.32, bO2Min: 50, ppo2Max: 1.6, ppo2Min: 1.4, cdiMax: 0.5, dn2Max: 0.25, depthMax: 45, boSwPpo2: 0.5, n2MaxPts: 0.04 };   // zone 76–120 m : switch le plus haut (PPO₂ BO 0.5), N₂ ≤ BO + 4 points
 function proposeTravel(profondeur, o2bopPct, n2bopPct) {
   if (!(profondeur > 0)) return null;
   var o2bop = o2bopPct / 100, n2bop = n2bopPct / 100, hasBo = o2bop > 0;
@@ -249,9 +276,9 @@ function proposeTravel(profondeur, o2bopPct, n2bopPct) {
     }
     if (!found) return null;
   } else {                                        // 76–120 m : le plus de N₂ possible, hélium en complément
-    zone = 'Zone 76–120 m : PPO₂ 1.4–1.6, PPO₂ BO ≥ 0.5, N₂ ≤ BO + 4 pts, CDI ≤ 0.5 bar, écart N₂ ≤ 25 %, switch de 40 à 45 m';
+    zone = 'Zone 76–120 m : PPO₂ 1.4–1.6, PPO₂ BO ≥ 0.5, N₂ ≤ BO + 4 pts, CDI ≤ 0.5 bar, écart N₂ ≤ 25 %, switch ≤ 45 m';
     if (!hasBo) return null;
-    var p2 = Math.min(Math.max(TR.boSwPpo2 / o2bop, TR.swMinDepth / 10 + 1), pCap);   // jamais au-dessus de 40 m, au plus profond 45 m
+    var p2 = Math.min(TR.boSwPpo2 / o2bop, pCap);
     if (p2 <= 1.0) return null;
     var o2Pref = TR.ppo2Max / p2, o2Min = TR.ppo2Min / p2;
     if (o2Min > 1.0) return null;
@@ -345,6 +372,169 @@ function computeActual(cell1, cell2, a, s) {
            errN2: n2Final < -1e-9, errStick: cell1 > 40 || cell2 > 40, errCell: cell1 > cell2 };
 }
 function prefix(he, th) { return he > (th == null ? 0.01 : th) ? 'TX' : 'NX'; }
+/* Plan de gonflage par pressions partielles (bars ; fractions 0..1).
+   Gaz : T1 (Trimix dispo), T2 (Nitrox / 2e Trimix dispo), A (air), X (O₂ pur), H (He pur, optionnel).
+   Exact : sommets de {v ≥ 0, C·v = besoin} ; on maximise T1 + T2 (donc air + O₂ pur + He pur au minimum), air seulement si nécessaire.
+   Approché (cible hors de portée) : moindres carrés bornés par énumération des contraintes actives, purge comprise. */
+var GF_EPS = 0.001;
+function gfSolve(A, b) {                       // Gauss à pivot partiel ; null si singulier
+  var n = b.length, M = A.map(function (r, i) { return r.concat([b[i]]); }), c, r, k;
+  for (c = 0; c < n; c++) {
+    var p = c;
+    for (r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    if (Math.abs(M[p][c]) < 1e-11) return null;
+    var tmp = M[c]; M[c] = M[p]; M[p] = tmp;
+    for (r = 0; r < n; r++) if (r !== c) {
+      var fct = M[r][c] / M[c][c];
+      for (k = c; k <= n; k++) M[r][k] -= fct * M[c][k];
+    }
+  }
+  return M.map(function (row, i) { return row[n] / row[i]; });
+}
+function gfCombos(names, k) {
+  var out = [];
+  (function rec(start, cur) {
+    if (cur.length === k) { out.push(cur.slice()); return; }
+    for (var j = start; j < names.length; j++) { cur.push(names[j]); rec(j + 1, cur); cur.pop(); }
+  })(0, []);
+  return out;
+}
+function gfExact(cols, need) {                  // toutes les solutions de base faisables
+  var names = Object.keys(cols), out = [];
+  for (var k = 1; k <= 3; k++) gfCombos(names, k).forEach(function (S) {
+    var C = S.map(function (n) { return cols[n]; });
+    var G = C.map(function (ci) { return C.map(function (cj) { return ci[0] * cj[0] + ci[1] * cj[1] + ci[2] * cj[2]; }); });
+    var rhs = C.map(function (ci) { return ci[0] * need[0] + ci[1] * need[1] + ci[2] * need[2]; });
+    var v = gfSolve(G, rhs);
+    if (!v) return;
+    for (var r = 0; r < 3; r++) {
+      var s = 0; for (var q = 0; q < k; q++) s += v[q] * C[q][r];
+      if (Math.abs(need[r] - s) > 1e-6) return;
+    }
+    if (Math.min.apply(null, v) < -GF_EPS) return;
+    var sol = {}; S.forEach(function (n, q) { sol[n] = Math.max(0, v[q]); });
+    out.push(sol);
+  });
+  return out;
+}
+function gfPick(sols) {                          // T1 + T2 maximal (symétrique) ; air seulement si aucune solution sans air
+  if (!sols.length) return null;
+  var noAir = sols.filter(function (s) { return (s.A || 0) < 1e-7; }), pool = noAir.length ? noAir : sols;
+  var rd = function (x) { return Math.round((x || 0) * 1e6); }, best = pool[0];
+  pool.forEach(function (s) {
+    var a = rd((s.T1 || 0) + (s.T2 || 0)), b = rd((best.T1 || 0) + (best.T2 || 0));
+    if (a > b || (a === b && rd(s.T1) > rd(best.T1))) best = s;      // ex æquo : T1 d'abord
+  });
+  return best;
+}
+function gfVec(g) { return [g.o2, g.he, g.n2]; }
+function gfCols(i) {
+  var c = {};
+  if (i.avT1) c.T1 = gfVec(i.t1);
+  if (i.avT2) c.T2 = gfVec(i.t2);
+  c.A = gfVec(i.air);
+  if (i.avO2 !== false) c.X = [1, 0, 0];
+  if (i.avHe) c.H = gfVec(i.he);
+  return c;
+}
+function gfGoal(i) { var t = i.target, b = i.targetBar; return [b * t.o2, b * t.he, b * t.n2]; }
+function gfNeed(i, p0) { var g = gfGoal(i), b = i.bloc; return [g[0] - p0 * b.o2, g[1] - p0 * b.he, g[2] - p0 * b.n2]; }
+function gfExactAt(i, cols, p0) {
+  var nd = gfNeed(i, p0);
+  if (Math.min(nd[0], nd[1], nd[2]) < -GF_EPS) return null;
+  return gfPick(gfExact(cols, nd));
+}
+function gfApprox(i) {                           // meilleur mélange atteignable (écart quadratique minimal)
+  var cols = gfCols(i); cols.P = gfVec(i.bloc);
+  var names = Object.keys(cols), goal = gfGoal(i), bar = i.targetBar, ub = { P: i.blocBar }, best = null;
+  var states = names.map(function (n) { return n === 'P' ? ['free', 'low', 'up'] : ['free', 'low']; });
+  (function rec(idx, cur) {
+    if (idx < names.length) { states[idx].forEach(function (s) { cur.push(s); rec(idx + 1, cur); cur.pop(); }); return; }
+    var fixed = {}, free = [], fsum = 0, q, k;
+    names.forEach(function (n, j) { if (cur[j] === 'free') free.push(n); else { fixed[n] = cur[j] === 'low' ? 0 : ub[n]; fsum += fixed[n]; } });
+    var r = goal.slice();
+    for (var n in fixed) for (k = 0; k < 3; k++) r[k] -= fixed[n] * cols[n][k];
+    var total = bar - fsum, all = {}, v = {};
+    for (var n2 in fixed) all[n2] = fixed[n2];
+    if (!free.length) { if (Math.abs(total) > 1e-9) return; }
+    else {
+      var m = free.length, C = free.map(function (n) { return cols[n]; }), K = [], rhs = [];
+      for (q = 0; q <= m; q++) { K.push(new Array(m + 1).fill(0)); rhs.push(0); }
+      for (q = 0; q < m; q++) {
+        for (var w = 0; w < m; w++) K[q][w] = 2 * (C[q][0] * C[w][0] + C[q][1] * C[w][1] + C[q][2] * C[w][2]);
+        K[q][m] = 1; K[m][q] = 1;
+        rhs[q] = 2 * (C[q][0] * r[0] + C[q][1] * r[1] + C[q][2] * r[2]);
+      }
+      rhs[m] = total;
+      var sol = gfSolve(K, rhs);
+      if (!sol) return;
+      for (q = 0; q < m; q++) {
+        if (sol[q] < -1e-9 || (free[q] === 'P' && sol[q] > ub.P + 1e-9)) return;
+        all[free[q]] = Math.max(0, sol[q]);
+      }
+    }
+    var obj = 0;
+    for (k = 0; k < 3; k++) { var e = -goal[k]; for (var n3 in all) e += all[n3] * cols[n3][k]; obj += e * e; }
+    if (!best || obj < best.obj - 1e-12) best = { obj: obj, v: all };
+  })(0, []);
+  return best;
+}
+function gfHeliairStart(i) {                     // pression de départ pour l'héliair : l'air seul apporte l'azote
+  var b = i.bloc, t = i.target, bar = i.targetBar, B = i.blocBar, a = i.air;
+  var lim = Math.min(B, b.o2 > 0 ? bar * t.o2 / b.o2 : B, b.he > 0 ? bar * t.he / b.he : B, b.n2 > 0 ? bar * t.n2 / b.n2 : B);
+  if (a.n2 > 0) {
+    var r = a.o2 / a.n2, cO = b.o2 - r * b.n2, rO = bar * (t.o2 - r * t.n2);
+    if (cO > 1e-9) lim = Math.min(lim, rO / cO);
+  }
+  lim = Math.max(0, lim);
+  var purge = B > lim ? Math.ceil((B - lim) * 10 - 1e-9) / 10 : 0;
+  return { purge: purge, after: B - purge };
+}
+function gfCompute(i) {
+  var b = i.bloc, bar = i.targetBar, B = i.blocBar, cols = gfCols(i), goal = gfGoal(i);
+  var ext = gfCols(i); ext.P = gfVec(b);
+  var phi = null;
+  gfExact(ext, goal).forEach(function (s) { phi = Math.max(phi === null ? 0 : phi, s.P || 0); });   // pression de départ max réalisable
+  var p0 = B, sol = gfExactAt(i, cols, B), approx = false;
+  if (!sol && phi !== null && phi < B - 1e-9) {
+    var purge0 = Math.ceil((B - phi) * 10 - 1e-9) / 10;
+    p0 = B - purge0; sol = gfExactAt(i, cols, p0);
+    if (!sol) { p0 = phi; sol = gfExactAt(i, cols, p0); }
+  }
+  if (!sol) {
+    var a = gfApprox(i); approx = true; sol = {}; ['T1', 'T2', 'A', 'X', 'H'].forEach(function (k) { sol[k] = a.v[k] || 0; }); p0 = a.v.P || 0;
+  }
+  var t1 = sol.T1 || 0, t2 = sol.T2 || 0, air = sol.A || 0, o2Pure = sol.X || 0, hePure = sol.H || 0;
+  var purge = { max: phi === null ? B : phi, purge: B - p0, after: p0 };
+
+  var steps = [{ kind: 'start', add: 0, total: p0 }], total = p0, pO = p0 * b.o2, pH = p0 * b.he, pN = p0 * b.n2;
+  [['o2', o2Pure, gas(1, 0)], ['he', hePure, i.he], ['trimix', t1, i.t1], ['nitrox', t2, i.t2], ['air', air, i.air]].forEach(function (s) {
+    total += s[1]; pO += s[1] * s[2].o2; pH += s[1] * s[2].he; pN += s[1] * s[2].n2;
+    steps.push({ kind: s[0], add: s[1], total: total });
+  });
+  var fin = total > 0 ? { o2: pO / total, he: pH / total, n2: pN / total } : null;
+  var dev = fin ? { o2: fin.o2 - i.target.o2, he: fin.he - i.target.he } : null;
+
+  var nd = gfNeed(i, p0), needO2 = nd[0], needHe = nd[1], needN2 = nd[2];
+  var addOnce = bar - p0;                                          // Trimix unique
+  var unique = { add: addOnce, o2: addOnce > 0 ? needO2 / addOnce : 0, he: addOnce > 0 ? needHe / addOnce : 0, n2: addOnce > 0 ? needN2 / addOnce : 0 };
+  unique.ok = addOnce > 0 && unique.o2 >= -1e-5 && unique.he >= -1e-5 && unique.n2 >= -1e-5;
+  var hs = gfHeliairStart(i), nd2 = gfNeed(i, hs.after), air_ = i.air;       // Héliair : sa propre purge (air + O₂ pur + He)
+  var airBars = air_.n2 > 0 ? nd2[2] / air_.n2 : 0, o2Before = nd2[0] - air_.o2 * airBars;
+  var o2ok = i.avO2 !== false ? o2Before >= -GF_EPS : (o2Before >= -GF_EPS && o2Before <= 0.05);    // sans O₂ pur, l'air doit suffire
+  var heliair = { air: airBars, o2Pure: o2Before, ok: o2ok && Math.min(nd2[0], nd2[1], nd2[2]) >= -GF_EPS, needHe: nd2[1],
+                  start: hs.after, purge: hs.purge, target: bar, airO2: air_.o2 };
+  return { purge: purge, status: approx ? 'approx' : 'ok', o2Pure: o2Pure, hePure: hePure, trimix: t1, nitrox: t2, air: air,
+           steps: steps, total: total, fin: fin, dev: dev, unique: unique, heliair: heliair };
+}
+function gfHeliairRow(hl, o2Pct) {
+  var o = o2Pct / 100;
+  var he = (hl.airO2 > 0 && o <= hl.airO2) ? 1 - o / hl.airO2 : 0;
+  var bars = o > 0 ? hl.air * hl.airO2 / o : 0;
+  var hePure = hl.needHe - he * bars;
+  var status = o > hl.airO2 + 1e-6 ? 'above' : hl.o2Pure < -GF_EPS ? 'rich' : hePure < -GF_EPS ? 'henoneg' : 'ok';
+  return { o2: o2Pct, he: he * 100, bars: bars, hePure: hePure, before: hl.start + hl.o2Pure + hePure, status: status };
+}
 //</calc>
 
 /* ───────────── Composants d'affichage ───────────── */
@@ -575,7 +765,7 @@ var cardDecoProp;
   cp.add(frow('row2', field('sProf', 'PROF (m)', { color: 'var(--c-param)', max: 120 }), field('sConso', 'CONSO (L/min)', { color: 'var(--c-param)', max: 50 })));
   cp.add(frow('row2', field('sTpsp', 'VIT. DÉP (m/min)', { color: 'var(--c-temps)', max: 30 }), field('sCs', 'COEF SÉCU', { color: 'var(--c-temps)', step: 0.1, max: 100 })));
   cp.add(frow('rowc', field('sTpsr', 'TPS DEMI-TOUR (min)', { color: 'var(--c-temps)', max: 120, w: 200 })));
-  cp.add(h('div', 'hint pre sm', '✔Coef de sécu: je veux qu’il me reste à la fin de la plg x de mes volumes\nrègle des 1/2 mettre 2 \nrègle des 1/3 mettre 1.5 \nrègle des 1/4 mettre 1.33'));
+  cp.add(h('div', 'hint pre sm', '✔Coef de sécu:\nrègle des 1/2 mettre 2 \nrègle des 1/3 mettre 1.5 \nrègle des 1/4 mettre 1.33'));
   var c1 = newCard(p, 'Je détermine le Tps et la Dist', 'var(--accent)');
   c1.add(frow('rowc', field('sVol', 'VOL (L)', { color: 'var(--c-vol)', max: 9000, w: 200 })));
   D.sout1 = c1.dyn();
@@ -585,6 +775,63 @@ var cardDecoProp;
   var c3 = newCard(p, 'Je détermine le Vol des blocs', 'var(--seafoam)');
   c3.add(frow('rowc', field('sPb', 'PRESS (bar)', { color: 'var(--c-dist)', step: 10, max: 340, w: 200 })));
   D.sout3 = c3.dyn();
+})();
+
+/* ── Plan de gonflage ── */
+var GF = {};
+function gfSwitch(key) {
+  var b = h('button', 'sw'); b.type = 'button'; b.setAttribute('role', 'switch');
+  function paint() {
+    var on = S[key] !== '0';
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.innerHTML = '<span>' + (on ? 'Dispo' : 'Pas dispo') + '</span><span class="swk"></span>';
+  }
+  b.addEventListener('click', function () { S[key] = S[key] !== '0' ? '0' : '1'; lsSet(key, S[key]); paint(); update(); });
+  paint(); return b;
+}
+function gfGasBlock(card, id, title, o2Key, heKey, onKey) {     // un gaz dispo ; onKey = interrupteur « Dispo »
+  var box = h('div', 'gblock'), hd = h('div', 'gb-h'), t = h('span');
+  t.textContent = title; hd.appendChild(t);
+  if (onKey) hd.appendChild(gfSwitch(onKey));
+  box.appendChild(hd);
+  var body = h('div', 'dyn');
+  body.appendChild(frow('row2', field(o2Key, 'O₂ %'), field(heKey, 'He %')));
+  D[id] = h('div', 'dyn'); body.appendChild(D[id]);
+  box.appendChild(body); card.add(box); GF[id] = body;
+}
+(function () {
+  var p = newPage('Plan de gonflage');
+  var c1 = newCard(p, 'Bloc actuel', 'var(--seafoam)');
+  c1.add(frow('row2', field('gBo2', 'O₂ %'), field('gBhe', 'He %')));
+  c1.add(frow('rowc', field('gBbar', 'Pression (bar)', { step: 10, max: 400, w: 200 })));
+  D.gfBloc = c1.dyn();
+  var c2 = newCard(p, 'Cible', 'var(--accent)');
+  c2.add(frow('row2', field('gTo2', 'O₂ %'), field('gThe', 'He %')));
+  c2.add(frow('rowc', field('gTbar', 'Pression (bar)', { step: 10, max: 400, w: 200 })));
+  D.gfCible = c2.dyn();
+  var c3 = newCard(p, 'Gaz disponibles', 'var(--violet)');
+  gfGasBlock(c3, 'gfTx', 'Trimix dispo', 'gTxO2', 'gTxHe', 'gTxOn');
+  gfGasBlock(c3, 'gfNx', 'Nitrox / Trimix 2 dispo', 'gNxO2', 'gNxHe', 'gNxOn');
+  gfGasBlock(c3, 'gfHp', 'Hélium pur', 'gHpO2', 'gHpHe', 'gHpOn');
+  var bo2 = h('div', 'gblock'), ho2 = h('div', 'gb-h'), to2 = h('span');
+  to2.textContent = 'Oxygène pur'; ho2.appendChild(to2); ho2.appendChild(gfSwitch('gO2On')); bo2.appendChild(ho2); c3.add(bo2);
+  gfGasBlock(c3, 'gfAir', 'Air', 'gAirO2', 'gAirHe', null);
+  c3.add(h('div', 'hint sm', "L'oxygène pur est supposé à 100 %. « Pas dispo » sur un gaz le retire du calcul ; si la cible n'est pas atteignable, on voit le meilleur mélange possible. Les deux Trimix sont utilisés au maximum avant tout gaz pur, quel que soit leur ordre de saisie."));
+  D.gfAlerts = h('div', 'dyn'); p.appendChild(D.gfAlerts);
+  GF.cPurge = newCard(p, 'Purge', 'var(--warn)'); D.gfPurge = GF.cPurge.dyn();
+  GF.cPlan = newCard(p, 'Plan de gonflage', 'var(--result)'); D.gfPlan = GF.cPlan.dyn();
+  GF.cUnique = newCard(p, 'Trimix unique', 'var(--violet)'); D.gfUnique = GF.cUnique.dyn();
+})();
+
+/* ── Héliair ── */
+(function () {
+  var p = newPage('Héliair');
+  D.heMsg = h('div', 'dyn'); p.appendChild(D.heMsg);
+  GF.cHeData = newCard(p, 'Données', 'var(--seafoam)'); D.heData = GF.cHeData.dyn();
+  GF.cHeChoice = newCard(p, 'Héliair souhaité', 'var(--violet)');
+  GF.heField = frow('rowc', field('gHeli', 'O₂ héliair %', { w: 200, max: 21, color: 'var(--violet)' })); GF.cHeChoice.add(GF.heField);
+  D.heChoice = GF.cHeChoice.dyn();
+  GF.cHeTable = newCard(p, 'Réglages possibles', 'var(--accent)'); D.heTable = GF.cHeTable.dyn();
 })();
 
 /* ───────────── Mise à jour (tous les calculs) ───────────── */
@@ -864,10 +1111,115 @@ function update() {
   D.sout1.innerHTML = pair('Tps de Plg', fo(tpsPlg, 2), ' mn', (tpsPlg != null && tpsPlg <= 0) ? 'danger' : 'ok', 'Distance', fo(dist, 2), ' m', 'ok');
   D.sout2.innerHTML = pair('Tps de Plg', fo(tpsPlg2, 2), ' mn', 'ok', 'Vol total blocs', fo(vol2, 0), ' l', 'ok');
   D.sout3.innerHTML = resultBox(typeBloc != null ? f(typeBloc, 2) + ' L' : '--', 'var(--seafoam)', 'TYPE DE BLOC');
+  gfUpdate();
+}
+
+/* ───────────── Plan de gonflage : affichage ───────────── */
+var GF_PRESETS = [4, 5, 6, 8, 10, 12, 15];
+var GF_HE_TXT = { above: 'O₂ supérieur à l\'air', rich: 'Impossible : trop d\'O₂ dans l\'air', henoneg: 'O₂ trop bas (He pur &lt; 0)' };
+function gfNum(k) { return nz(dec(S[k])); }
+function gfMix(ko, kh) { return gas(gfNum(ko) / 100, gfNum(kh) / 100); }
+function gfBar(v) { return Math.abs(v) < 0.05 ? '0' : f(v, 1); }
+function gfName(o2Pct, hePct) { return prefix(hePct) + ' ' + f(o2Pct, 1) + ' / ' + f(hePct, 1); }
+function gfSigned(v) { return (v < 0 ? '−' : '+') + f(Math.abs(v), 1); }
+function gfN2Row(g) { return rrow('N₂', f(g.n2 * 100, 1), ' %', g.n2 < -1e-9 ? 'danger' : 'ok'); }
+function gfPlanRow(n, label, add, total, active) {
+  return '<div class="prow' + (active ? '' : ' off') + '"><span class="pn">' + n + '</span><span class="pl">' + label +
+    '</span><span class="pa"><b>' + (n === 0 ? 'départ' : '+ ' + gfBar(add) + ' bar') + '</b><span>→ ' + gfBar(total) + ' bar</span></span></div>';
+}
+function gfUpdate() {
+  var bloc = gfMix('gBo2', 'gBhe'), cible = gfMix('gTo2', 'gThe'), tx = gfMix('gTxO2', 'gTxHe'), nx = gfMix('gNxO2', 'gNxHe'),
+      hp = gfMix('gHpO2', 'gHpHe'), air = gfMix('gAirO2', 'gAirHe');
+  var avT = S.gTxOn !== '0', avN = S.gNxOn !== '0', avH = S.gHpOn !== '0', avO = S.gO2On !== '0', blocBar = gfNum('gBbar'), cibleBar = gfNum('gTbar');
+  D.gfBloc.innerHTML = gfN2Row(bloc);
+  D.gfCible.innerHTML = gfN2Row(cible) + (cible.o2 > 0 && gValid(cible) ? resultBox(gfName(cible.o2 * 100, cible.he * 100), 'var(--accent)', 'MÉLANGE VISÉ') : '');
+  D.gfTx.innerHTML = gfN2Row(tx); D.gfNx.innerHTML = gfN2Row(nx); D.gfHp.innerHTML = gfN2Row(hp); D.gfAir.innerHTML = gfN2Row(air);
+  GF.gfTx.style.display = avT ? '' : 'none'; GF.gfNx.style.display = avN ? '' : 'none'; GF.gfHp.style.display = avH ? '' : 'none';
+
+  var probs = [];
+  if (!gValid(bloc)) probs.push('Bloc actuel : O₂ + He dépasse 100 %');
+  if (!gValid(cible)) probs.push('Cible : O₂ + He dépasse 100 %');
+  if (avT && !gValid(tx)) probs.push('Trimix dispo : O₂ + He dépasse 100 %');
+  if (avN && !gValid(nx)) probs.push('Nitrox / Trimix 2 dispo : O₂ + He dépasse 100 %');
+  if (avH && !gValid(hp)) probs.push('He pur : O₂ + He dépasse 100 %');
+  if (!gValid(air)) probs.push('Air : O₂ + He dépasse 100 %');
+  var ready = !probs.length && blocBar > 0 && cibleBar > 0 && cible.o2 > 0;
+  var alerts = probs.map(function (t) { return alertB(t); }).join('');
+  D.gfAlerts.innerHTML = alerts + (!ready && !probs.length ? hint('Renseigne les pressions et mélanges du bloc et de la cible pour calculer.') : '');
+  D.heMsg.innerHTML = alerts + (!ready && !probs.length ? hint('Renseigne le bloc, la cible et les gaz dans la page Gonf.') : '');
+  [GF.cPurge, GF.cPlan, GF.cUnique, GF.cHeData, GF.cHeChoice, GF.cHeTable].forEach(function (c) { c.sec.style.display = ready ? '' : 'none'; });
+  if (!ready) return;
+
+  var r = gfCompute({ bloc: bloc, blocBar: blocBar, target: cible, targetBar: cibleBar, t1: tx, t2: nx, he: hp, air: air, avT1: avT, avT2: avN, avHe: avH, avO2: avO });
+  var approx = r.status === 'approx';
+
+  D.gfPurge.innerHTML = rrow('Pression max du bloc', gfBar(r.purge.max), ' bar') +
+    rrow('Purge recommandée', gfBar(r.purge.purge), ' bar', r.purge.purge > 0 ? 'warn' : 'ok') +
+    rrow('Bloc après purge', gfBar(r.purge.after), ' bar');
+
+  var used = [];
+  if (r.trimix >= 0.05) used.push('Trimix dispo');
+  if (r.nitrox >= 0.05) used.push('Nitrox / Trimix 2');
+  if (r.air >= 0.05) used.push('air');
+  var html = (approx ? alertB('Cible non atteignable avec ces gaz : voici le meilleur mélange possible', 'warn') : '') +
+    hint(used.length ? 'Gaz utilisés : ' + used.join(' + ') : 'Gaz purs seulement');
+  var rows = '', n = 0;
+  r.steps.forEach(function (s) {
+    if ((s.kind === 'trimix' && !avT) || (s.kind === 'nitrox' && !avN) || (s.kind === 'he' && !avH) || (s.kind === 'o2' && !avO)) return;
+    var label = { start: 'Bloc après purge', o2: 'Oxygène pur', he: 'Hélium pur', trimix: 'Trimix dispo  ' + gfName(tx.o2 * 100, tx.he * 100),
+                  nitrox: 'Nitrox / Trimix 2  ' + gfName(nx.o2 * 100, nx.he * 100), air: 'Air' }[s.kind];
+    rows += gfPlanRow(n, label, s.add, s.total, s.kind === 'start' || Math.abs(s.add) >= 0.05); n++;
+  });
+  html += '<div>' + rows + '</div>';
+  if (r.fin) {
+    html += resultBox(gfName(r.fin.o2 * 100, r.fin.he * 100), 'var(--result)', (approx ? 'MÉLANGE OBTENU (APPROCHÉ)' : 'MÉLANGE OBTENU') + ' · ' + gfBar(r.total) + ' BAR') +
+      rrow('N₂ obtenu', f(r.fin.n2 * 100, 1), ' %');
+    if (approx) html += rrow('Écart O₂ / cible', gfSigned(r.dev.o2 * 100), ' pt', 'warn') + rrow('Écart He / cible', gfSigned(r.dev.he * 100), ' pt', 'warn');
+  }
+  D.gfPlan.innerHTML = html;
+
+  var u = r.unique;
+  D.gfUnique.innerHTML = hint('Mélange à préparer pour atteindre la cible en un seul remplissage sur le bloc purgé.') +
+    (u.ok ? resultBox(gfName(u.o2 * 100, u.he * 100), 'var(--violet)', 'À AJOUTER · ' + gfBar(u.add) + ' BAR') + rrow('N₂', f(u.n2 * 100, 1), ' %')
+          : alertB('Cible hors de portée en un seul mélange'));
+
+  /* Héliair */
+  var hl = r.heliair;
+  D.heData.innerHTML = rrow('Bloc après purge', gfBar(hl.start), ' bar') +
+    rrow('Départ', gfName(bloc.o2 * 100, bloc.he * 100)) +
+    rrow('Cible', gfName(cible.o2 * 100, cible.he * 100) + ' · ' + gfBar(cibleBar) + ' bar') +
+    rrow('Purge pour l\'héliair', gfBar(hl.purge), ' bar', hl.purge > 0 ? 'warn' : 'ok') +
+    rrow('Hélium à apporter', gfBar(hl.needHe), ' bar') +
+    rrow('Air dans l\'héliair', gfBar(hl.air), ' bar') +
+    (avO ? rrow('O₂ pur à ajouter d\'abord', gfBar(hl.o2Pure), ' bar', hl.ok ? 'ok' : 'danger') : rrow('O₂ pur (désactivé)', gfBar(hl.o2Pure), ' bar', hl.ok ? 'ok' : 'danger')) +
+    (hl.ok ? '' : alertB(avO ? 'L\'air apporte déjà trop d\'O₂ : purge davantage ou utilise un autre gaz' : 'Sans O₂ pur, l\'air ne peut pas équilibrer l\'oxygène de ce plan'));
+  GF.cHeChoice.sec.style.display = hl.ok ? '' : 'none';
+  GF.cHeTable.sec.style.display = (hl.ok && avH) ? '' : 'none';
+  if (!hl.ok) return;
+  var o2Sel = avH ? gfNum('gHeli') : (hl.air + hl.needHe > 0 ? hl.airO2 * hl.air / (hl.air + hl.needHe) * 100 : hl.airO2 * 100);
+  GF.heField.style.display = avH ? '' : 'none';                   // sans He pur : tout l'hélium passe par l'héliair
+  var row = gfHeliairRow(hl, o2Sel);
+  if (row.status !== 'ok') {
+    D.heChoice.innerHTML = alertB(GF_HE_TXT[row.status], 'warn');
+  } else {
+    var hrows = [['Bloc après purge', 0, hl.start, true]];
+    if (avO) hrows.push(['Oxygène pur', hl.o2Pure, hl.start + hl.o2Pure, hl.o2Pure >= 0.05]);
+    if (avH) hrows.push(['Hélium pur', row.hePure, row.before, row.hePure >= 0.05]);
+    hrows.push(['Héliair  ' + gfName(row.o2, row.he), row.bars, row.before + row.bars, true]);
+    D.heChoice.innerHTML = (avH ? '' : hint('Hélium pur désactivé : tout l\'hélium passe par l\'héliair.')) +
+      resultBox(gfName(row.o2, row.he), 'var(--violet)', 'HÉLIAIR À RÉGLER') + '<div>' +
+      hrows.map(function (q, idx) { return gfPlanRow(idx, q[0], q[1], q[2], q[3]); }).join('') + '</div>';
+  }
+  if (avH) D.heTable.innerHTML = hint('O₂ % rond à régler sur le compresseur. Plus l\'héliair est riche en O₂, plus tu mets d\'hélium pur avant.') +
+    '<div>' + GF_PRESETS.map(function (o) {
+      var q = gfHeliairRow(hl, o), ok = q.status === 'ok';
+      return '<div class="hl' + (ok ? '' : ' bad') + '"><div class="hl-t"><span>' + gfName(q.o2, q.he) + '</span><i>' + (ok ? 'OK' : GF_HE_TXT[q.status]) + '</i></div>' +
+        (ok ? '<div class="hint sm">He pur ' + gfBar(q.hePure) + ' → ' + gfBar(q.before) + ' bar, puis héliair + ' + gfBar(q.bars) + ' bar</div>' : '') + '</div>';
+    }).join('') + '</div>';
 }
 
 /* ───────────── Onglets ───────────── */
-var TABS = ['Dil', 'BO', 'Trav', 'Déco', 'Mix-G', 'Sout'];
+var TABS = ['Dil', 'BO', 'Trav', 'Déco', 'Mix-G', 'Sout', 'Gonf', 'Héli'];
 var tabsEl = document.getElementById('tabs'), ind = document.getElementById('ind'), tabBtns = [];
 TABS.forEach(function (t, i) {
   var b = h('button'); b.type = 'button'; b.textContent = t; b.setAttribute('role', 'tab');
@@ -882,6 +1234,8 @@ function showTab(i) {
   window.scrollTo(0, 0);
 }
 var t0 = parseInt(lsGet('tab'), 10);
+if (lsGet('tabv') === '8' && !isNaN(t0)) t0 = [0, 1, 2, 3, 4, 6, 7, 5][t0];   // version précédente : Gonf 5, Héli 6, Sout 7 → Sout 5, Gonf 6, Héli 7
+if (lsGet('tabv') !== '9') lsSet('tabv', '9');
 showTab(isNaN(t0) || t0 < 0 || t0 >= TABS.length ? 0 : t0);
 update();
 
