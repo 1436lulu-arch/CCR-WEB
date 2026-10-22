@@ -765,9 +765,7 @@ var cardDecoProp;
   cp.add(frow('row2', field('sProf', 'PROF (m)', { color: 'var(--c-param)', max: 120 }), field('sConso', 'CONSO (L/min)', { color: 'var(--c-param)', max: 50 })));
   cp.add(frow('row2', field('sTpsp', 'VIT. DÉP (m/min)', { color: 'var(--c-temps)', max: 30 }), field('sCs', 'COEF SÉCU', { color: 'var(--c-temps)', step: 0.1, max: 100 })));
   cp.add(frow('rowc', field('sTpsr', 'TPS DEMI-TOUR (min)', { color: 'var(--c-temps)', max: 120, w: 200 })));
-  cp.add(h('div', 'hint pre sm', '✔Coef de sécu en CCR:Je consomme pour le retour les 2/3 de mon volume : mettre 1.5
-Pour 1/2, mettre 2, Pour 3/4 mettre 1.33
-✔Coef de sécu en OC:  Pour la règle des 1/4 mettre 4'));
+  cp.add(h('div', 'hint pre sm', '✔Coef de sécu en CCR:Je consomme pour le retour les 2/3 de mon volume : mettre 1.5\nPour 1/2, mettre 2, Pour 3/4 mettre 1.33\n✔Coef de sécu en OC:  Pour la règle des 1/4 mettre 4'));
   var c1 = newCard(p, 'Je détermine le Tps et la Dist', 'var(--accent)');
   c1.add(frow('rowc', field('sVol', 'VOL (L)', { color: 'var(--c-vol)', max: 9000, w: 200 })));
   D.sout1 = c1.dyn();
