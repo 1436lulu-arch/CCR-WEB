@@ -776,9 +776,7 @@ var cardDecoProp;
   c1.add(frow('row2',
     soutCol(field('sVol', 'Vol 1 (L)', { color: 'var(--c-vol)', max: 9000 }), field('sCs', 'Coef Sécu 1', { color: 'var(--c-temps)', step: 0.1, max: 100 })),
     soutCol(field('sVolR', 'Vol 2 (L)', { color: 'var(--c-vol)', max: function () { return nz(dec(S.sVol)) / 2; }, clamp: function (v) { return capText(v, nz(dec(S.sVol)) / 2); } }), field('sCsR', 'Coef Sécu 2', { color: 'var(--c-temps)', step: 0.1, max: 100 }))));
-  c1.add(h('div', 'hint pre sm', '✔Coef de sécu en CCR:Je consomme pour le retour les 2/3 de mon volume : mettre 1.5
-Pour 1/2, mettre 2, Pour 3/4 mettre 1.33
-✔Coef de sécu en OC:  Pour la règle des 1/4 mettre 4'));
+  c1.add(h('div', 'hint pre sm', '✔Coef de sécu en CCR: je consomme pour le retour 2/3 de mon volume: mettre 1.5, pour 1/2 mettre 2, pour 3/4 mettre 1.33 \n✔Coef de sécu en OC: Pour la règle des 1/4 mettre 4, pour la Règle des 1/3 mettre 3'));
   D.sout1 = c1.dyn();
   var c2 = newCard(p, 'Je détermine le Tps et le Vol pour l\'aller', 'var(--result)');
   c2.add(frow('rowc', field('sDist', 'Dist aller (m)', { color: 'var(--c-dist)', step: 10, max: 5000, w: 200 })));
