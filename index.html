@@ -160,7 +160,7 @@ function lsGet(k) { try { return localStorage.getItem(KEY + k) || ''; } catch (e
 function lsSet(k, v) { try { localStorage.setItem(KEY + k, v); } catch (e) {} }
 var NAMES = ['prof','dilO2','dilHe','boO2','boHe','trO2','trHe','swt','decoO2','injO2','injHe','tgO2','tgHe','c1','c2','heli',
              'gBo2','gBhe','gBbar','gTo2','gThe','gTbar','gTxO2','gTxHe','gNxO2','gNxHe','gHpO2','gHpHe','gAirO2','gAirHe','gHeli','gTxOn','gNxOn','gHpOn','gO2On',
-             'sProf','sConso','sTpsp','sCs','sTpsr','sVol','sDist','sPb','boPea','boDens','dPpo2','dDens','dPea','decoSrc','swO2','swHe','trSrc','dilSrc','decoSel','boSrc'];
+             'sProf','sConso','sTpsp','sCs','sTpsr','sVol','sDist','sPb','sVolR','sCsR','sPbR','boPea','boDens','dPpo2','dDens','dPea','decoSrc','swO2','swHe','trSrc','dilSrc','decoSel','boSrc'];
 var S = {};
 NAMES.forEach(function (n) { S[n] = lsGet(n); });
 if (S.boPea === '') S.boPea = '30';     // réglages du bailout proposé (valeurs par défaut)
@@ -560,6 +560,11 @@ function rrow(label, value, unit, s) {
     (s !== 'ok' ? ico(18) : '') + '<span>' + (empty ? value : value + (unit || '')) + '</span></span></div>';
 }
 function tile(t1, t2, t3) { return '<div class="tile"><div class="t1">' + t1 + '</div><div class="t2">' + t2 + '</div><div class="t3">' + t3 + '</div></div>'; }
+function capText(text, cap) {                    // Vol 2 ne dépasse jamais la moitié du Vol 1
+  var v = dec(text);
+  if (v == null || v <= cap) return text;
+  return String(Math.floor(cap * 10) / 10);
+}
 function hint(t) { return '<div class="hint">' + t + '</div>'; }
 function hintC(cls, t) { return '<div class="hint ' + cls + '">' + t + '</div>'; }
 
@@ -582,7 +587,8 @@ function stepValue(current, delta, min, max, step, def) {
 
 function field(key, label, o) {
   o = o || {};
-  var step = o.step === undefined ? 1 : o.step, min = o.min === undefined ? 0 : o.min, max = o.max === undefined ? 100 : o.max;
+  var step = o.step === undefined ? 1 : o.step, min = o.min === undefined ? 0 : o.min, maxOpt = o.max === undefined ? 100 : o.max;
+  function curMax() { return typeof maxOpt === 'function' ? maxOpt() : maxOpt; }          // max éventuellement dynamique
   var wrap = h('div', 'nf'); wrap.style.setProperty('--fc', o.color || 'var(--text)');
   if (o.w) wrap.style.width = o.w + 'px';
   var lab = h('label'); lab.textContent = label; wrap.appendChild(lab);
@@ -592,6 +598,7 @@ function field(key, label, o) {
   input.autocomplete = 'off'; input.setAttribute('autocorrect', 'off'); input.setAttribute('aria-label', label);
   input.value = S[key];
   input.addEventListener('input', function () {
+    if (o.clamp) { var cl = o.clamp(input.value); if (cl !== input.value) input.value = cl; }   // valeur plafonnée à la saisie
     S[key] = input.value;
     if (o.persist !== false) lsSet(key, input.value);
     if (o.onUser) o.onUser();
@@ -601,7 +608,7 @@ function field(key, label, o) {
   input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
   input.addEventListener('blur', function () { if (o.onDone) o.onDone(); });
   function change(d) {
-    var next = stepValue(input.value, d, min, max, step, o.def);
+    var next = stepValue(input.value, d, min, curMax(), step, o.def);
     input.value = next; S[key] = next; lsSet(key, next);
     if (o.onUser) o.onUser();
     if (o.onStepped) o.onStepped();
@@ -763,17 +770,21 @@ var cardDecoProp;
   var p = newPage('Calcul Sout');
   var cp = newCard(p, 'Paramètres', 'var(--c-param)');
   cp.add(frow('row2', field('sProf', 'PROF (m)', { color: 'var(--c-param)', max: 120 }), field('sConso', 'CONSO (L/min)', { color: 'var(--c-param)', max: 50 })));
-  cp.add(frow('row2', field('sTpsp', 'VIT. DÉP (m/min)', { color: 'var(--c-temps)', max: 30 }), field('sCs', 'COEF SÉCU', { color: 'var(--c-temps)', step: 0.1, max: 100 })));
-  cp.add(frow('rowc', field('sTpsr', 'TPS DEMI-TOUR (min)', { color: 'var(--c-temps)', max: 120, w: 200 })));
-  cp.add(h('div', 'hint pre sm', '✔Coef de sécu en CCR:Je consomme pour le retour les 2/3 de mon volume : mettre 1.5\nPour 1/2, mettre 2, Pour 3/4 mettre 1.33\n✔Coef de sécu en OC:  Pour la règle des 1/4 mettre 4'));
+  cp.add(frow('row2', field('sTpsp', 'VIT. DÉP (m/min)', { color: 'var(--c-temps)', max: 30 }), field('sTpsr', 'TPS DEMI-TOUR (min)', { color: 'var(--c-temps)', max: 120 })));
   var c1 = newCard(p, 'Je détermine le Tps et la Dist', 'var(--accent)');
-  c1.add(frow('rowc', field('sVol', 'VOL (L)', { color: 'var(--c-vol)', max: 9000, w: 200 })));
+  function soutCol(f1, f2) { var c = h('div', 'dyn'); c.style.flex = '1'; c.style.minWidth = '0'; c.appendChild(f1); c.appendChild(f2); return c; }
+  c1.add(frow('row2',
+    soutCol(field('sVol', 'Vol 1 (L)', { color: 'var(--c-vol)', max: 9000 }), field('sCs', 'Coef Sécu 1', { color: 'var(--c-temps)', step: 0.1, max: 100 })),
+    soutCol(field('sVolR', 'Vol 2 (L)', { color: 'var(--c-vol)', max: function () { return nz(dec(S.sVol)) / 2; }, clamp: function (v) { return capText(v, nz(dec(S.sVol)) / 2); } }), field('sCsR', 'Coef Sécu 2', { color: 'var(--c-temps)', step: 0.1, max: 100 }))));
+  c1.add(h('div', 'hint pre sm', '✔Coef de sécu en CCR:Je consomme pour le retour les 2/3 de mon volume : mettre 1.5
+Pour 1/2, mettre 2, Pour 3/4 mettre 1.33
+✔Coef de sécu en OC:  Pour la règle des 1/4 mettre 4'));
   D.sout1 = c1.dyn();
-  var c2 = newCard(p, 'Je détermine le Tps et le Vol', 'var(--result)');
-  c2.add(frow('rowc', field('sDist', 'DIST (m)', { color: 'var(--c-dist)', step: 10, max: 5000, w: 200 })));
+  var c2 = newCard(p, 'Je détermine le Tps et le Vol pour l\'aller', 'var(--result)');
+  c2.add(frow('rowc', field('sDist', 'Dist aller (m)', { color: 'var(--c-dist)', step: 10, max: 5000, w: 200 })));
   D.sout2 = c2.dyn();
   var c3 = newCard(p, 'Je détermine le Vol des blocs', 'var(--seafoam)');
-  c3.add(frow('rowc', field('sPb', 'PRESS (bar)', { color: 'var(--c-dist)', step: 10, max: 340, w: 200 })));
+  c3.add(frow('row2', field('sPb', 'PRESS 1 (bar)', { color: 'var(--c-dist)', step: 10, max: 340 }), field('sPbR', 'PRESS 2 (bar)', { color: 'var(--c-dist)', step: 10, max: 340 })));
   D.sout3 = c3.dyn();
 })();
 
@@ -1101,16 +1112,38 @@ function update() {
 
   /* ── Sout ── */
   var sProf = nz(dec(S.sProf)), sConso = nz(dec(S.sConso)), sTpsp = nz(dec(S.sTpsp)), cs = nz(dec(S.sCs)),
-      sTpsr = nz(dec(S.sTpsr)), sVol = nz(dec(S.sVol)), sDist = nz(dec(S.sDist)), sPb = nz(dec(S.sPb));
-  var sPabs = sProf / 10 + 1, denom = sPabs * sConso * cs;
-  var tpsPlg = (sVol > 0 && denom > 0) ? sVol / denom - sTpsr : null;
+      sTpsr = nz(dec(S.sTpsr)), sVol = nz(dec(S.sVol)), sDist = nz(dec(S.sDist)), sPb = nz(dec(S.sPb)),
+      sVolRShown = capText(S.sVolR, sVol / 2), sVolR = nz(dec(sVolRShown)), csRin = nz(dec(S.sCsR)), sPbR = nz(dec(S.sPbR));
+  if (FIELDS.sVolR && FIELDS.sVolR.input.value !== sVolRShown && document.activeElement !== FIELDS.sVolR.input) FIELDS.sVolR.input.value = sVolRShown;   // affichage plafonné (la saisie reste mémorisée)
+  var sPabs = sProf / 10 + 1, relay = sVolR > 0, cs2 = csRin > 0 ? csRin : cs;          // VOL 2 = 0 ou vide : pas de relais ; COEF 2 vide : coef 1
+  function usable(v, c) { var d = sPabs * sConso * c; return (v > 0 && d > 0) ? v / d - sTpsr : null; }
+  /* 1) volumes connus : temps et distance (somme des deux blocs si relais) */
+  var time1 = usable(sVol, cs), time2 = relay ? usable(sVolR, cs2) : null;
+  var tpsPlg = relay ? (sVol > 0 ? ((time1 != null && time2 != null) ? time1 + time2 : null) : time2) : time1;
   var dist = tpsPlg != null ? sTpsp * tpsPlg : null;
+  var notPos = (tpsPlg != null && tpsPlg <= 0) || (time1 != null && sVol > 0 && time1 <= 0) || (time2 != null && time2 <= 0);
+  D.sout1.innerHTML = hintC('pre', 'Les volumes sont calculés pour l\'aller-retour\n' + (relay ? 'Vol 2 renseigné : bloc relais pris en compte (Vol 2 = 0 ou vide : pas de relais).' : 'Vol 2 = 0 ou vide : pas de bloc relais.') + '\nVol 2 est limité à la moitié du Vol 1.') +
+    (relay && csRin <= 0 ? hint('Coef Sécu 2 vide : le Coef 1 est utilisé.') : '') +
+    pair('Tps de Plg aller', fo(tpsPlg, 2), ' mn', notPos ? 'danger' : 'ok', 'Distance aller', fo(dist, 2), ' m', 'ok') +
+    ((relay && sVol > 0 && time1 != null && time2 != null) ?
+      '<div class="hint ok" style="font-size:15px">Bloc 1 : ' + f(time1, 2) + ' mn · ' + f(sTpsp * time1, 0) + ' m\nBloc 2 : ' + f(time2, 2) + ' mn · ' + f(sTpsp * time2, 0) + ' m</div>' : '');
+  /* 2) distance aller connue : le relais couvre sa part, les blocs 1 le reste */
   var tpsPlg2 = (sDist > 0 && sTpsp > 0) ? sDist / sTpsp : null;
-  var vol2 = tpsPlg2 != null ? sPabs * (sTpsr + tpsPlg2) * sConso * cs : null;
-  var typeBloc = (vol2 != null && sPb > 0) ? vol2 / sPb / 2 : null;
-  D.sout1.innerHTML = pair('Tps de Plg', fo(tpsPlg, 2), ' mn', (tpsPlg != null && tpsPlg <= 0) ? 'danger' : 'ok', 'Distance', fo(dist, 2), ' m', 'ok');
-  D.sout2.innerHTML = pair('Tps de Plg', fo(tpsPlg2, 2), ' mn', 'ok', 'Vol total blocs', fo(vol2, 0), ' l', 'ok');
-  D.sout3.innerHTML = resultBox(typeBloc != null ? f(typeBloc, 2) + ' L' : '--', 'var(--seafoam)', 'TYPE DE BLOC');
+  var b1t = tpsPlg2 == null ? null : !relay ? tpsPlg2 : time2 == null ? null : Math.max(0, tpsPlg2 - time2);
+  var rt = (relay && tpsPlg2 != null && b1t != null) ? tpsPlg2 - b1t : null;
+  var vol1N = b1t == null ? null : ((relay && b1t <= 0) ? 0 : sPabs * (sTpsr + b1t) * sConso * cs);
+  var vol2N = rt != null ? sPabs * (sTpsr + rt) * sConso * cs2 : null;
+  var d1N = b1t != null ? sTpsp * b1t : null, d2N = rt != null ? sTpsp * rt : null;
+  D.sout2.innerHTML = (relay ? hintC('pre', 'Le bloc relais (VOL 2, Coef 2) couvre sa part de la distance \n les blocs 1 (Coef 1) couvrent le reste.\nLes volumes sont calculés pour l\'aller-retour') : '') +
+    pair('Vol bloc 1', fo(vol1N, 0), ' l', 'ok', 'Dist bloc 1', fo(d1N, 0), ' m', 'ok') +
+    (relay ? pair('Vol bloc 2', fo(vol2N, 0), ' l', 'ok', 'Dist bloc 2', fo(d2N, 0), ' m', 'ok') : '') +
+    resultBox(tpsPlg2 != null ? f(tpsPlg2, 2) + ' mn' : '--', 'var(--result)', 'TPS DE PLG ALLER') +
+    ((relay && b1t != null && b1t <= 0) ? hint('Le bloc relais couvre toute la distance.') : '');
+  /* 3) type de bloc : 2 blocs pour le volume 1, un seul pour le volume 2 */
+  var type1 = (vol1N != null && vol1N > 0 && sPb > 0) ? vol1N / sPb / 2 : null;
+  var type2 = (vol2N != null && vol2N > 0 && sPbR > 0) ? vol2N / sPbR : null;
+  D.sout3.innerHTML = resultBox(type1 != null ? f(type1, 2) + ' L' : '--', 'var(--seafoam)', relay ? 'TYPE DE BLOC 1 · 2 BLOCS' : 'TYPE DE BLOC') +
+    (relay ? resultBox(type2 != null ? f(type2, 2) + ' L' : '--', 'var(--seafoam)', 'TYPE DE BLOC 2 · 1 BLOC') : '');
   gfUpdate();
 }
 
