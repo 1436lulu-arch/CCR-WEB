@@ -1114,9 +1114,9 @@ function update() {
       sVolRShown = capText(S.sVolR, sVol / 2), sVolR = nz(dec(sVolRShown)), csRin = nz(dec(S.sCsR)), sPbR = nz(dec(S.sPbR));
   if (FIELDS.sVolR && FIELDS.sVolR.input.value !== sVolRShown && document.activeElement !== FIELDS.sVolR.input) FIELDS.sVolR.input.value = sVolRShown;   // affichage plafonné (la saisie reste mémorisée)
   var sPabs = sProf / 10 + 1, relay = sVolR > 0, cs2 = csRin > 0 ? csRin : cs;          // VOL 2 = 0 ou vide : pas de relais ; COEF 2 vide : coef 1
-  function usable(v, c) { var d = sPabs * sConso * c; return (v > 0 && d > 0) ? v / d - sTpsr : null; }
+  function usable(v, c, turn) { var d = sPabs * sConso * c; return (v > 0 && d > 0) ? v / d - turn : null; }   // demi-tour : seulement pour le Vol 1 (le relais est utilisé en premier)
   /* 1) volumes connus : temps et distance (somme des deux blocs si relais) */
-  var time1 = usable(sVol, cs), time2 = relay ? usable(sVolR, cs2) : null;
+  var time1 = usable(sVol, cs, sTpsr), time2 = relay ? usable(sVolR, cs2, 0) : null;
   var tpsPlg = relay ? (sVol > 0 ? ((time1 != null && time2 != null) ? time1 + time2 : null) : time2) : time1;
   var dist = tpsPlg != null ? sTpsp * tpsPlg : null;
   var notPos = (tpsPlg != null && tpsPlg <= 0) || (time1 != null && sVol > 0 && time1 <= 0) || (time2 != null && time2 <= 0);
@@ -1129,8 +1129,8 @@ function update() {
   var tpsPlg2 = (sDist > 0 && sTpsp > 0) ? sDist / sTpsp : null;
   var b1t = tpsPlg2 == null ? null : !relay ? tpsPlg2 : time2 == null ? null : Math.max(0, tpsPlg2 - time2);
   var rt = (relay && tpsPlg2 != null && b1t != null) ? tpsPlg2 - b1t : null;
-  var vol1N = b1t == null ? null : ((relay && b1t <= 0) ? 0 : sPabs * (sTpsr + b1t) * sConso * cs);
-  var vol2N = rt != null ? sPabs * (sTpsr + rt) * sConso * cs2 : null;
+  var vol1N = b1t == null ? null : sPabs * (sTpsr + b1t) * sConso * cs;
+  var vol2N = rt != null ? sPabs * rt * sConso * cs2 : null;
   var d1N = b1t != null ? sTpsp * b1t : null, d2N = rt != null ? sTpsp * rt : null;
   D.sout2.innerHTML = (relay ? hintC('pre', 'Le bloc relais (VOL 2, Coef 2) couvre sa part de la distance \n les blocs 1 (Coef 1) couvrent le reste.\nLes volumes sont calculés pour l\'aller-retour') : '') +
     pair('Vol bloc 1', fo(vol1N, 0), ' l', 'ok', 'Dist bloc 1', fo(d1N, 0), ' m', 'ok') +
