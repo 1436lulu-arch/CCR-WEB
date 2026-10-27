@@ -60,9 +60,12 @@ body {
 .nav-in { position: relative; display: flex; width: 100%; max-width: 560px; margin: 0 auto; }
 .nav button {
   flex: 1; height: 52px; border: 0; background: none; color: var(--tab); cursor: pointer;
-  font: 500 11px/1 inherit; font-family: inherit; letter-spacing: .8px; text-transform: uppercase;
+  /* MODIFICATION ICI : Minimum 10px sur téléphone, s'adapte avec l'écran, Maximum 15px sur PC */
+  font: 500 clamp(10px, 1.5vw + 6px, 15px)/1 inherit; 
+  font-family: inherit; letter-spacing: .8px; text-transform: uppercase;
   -webkit-tap-highlight-color: transparent;
 }
+
 .nav button[aria-selected="true"] { color: var(--tab-on); font-weight: 900; }
 .ind { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(100% / 8); padding: 0 12px; transition: transform .25s ease; pointer-events: none; }
 .ind::after { content: ""; display: block; height: 100%; background: var(--accent); border-radius: 4px 4px 0 0; }
