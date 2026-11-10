@@ -60,12 +60,9 @@ body {
 .nav-in { position: relative; display: flex; width: 100%; max-width: 560px; margin: 0 auto; }
 .nav button {
   flex: 1; height: 52px; border: 0; background: none; color: var(--tab); cursor: pointer;
-  /* MODIFICATION ICI : Minimum 10px sur téléphone, s'adapte avec l'écran, Maximum 15px sur PC */
-  font: 500 clamp(10px, 1.5vw + 6px, 15px)/1 inherit; 
-  font-family: inherit; letter-spacing: .8px; text-transform: uppercase;
+  font: 500 11px/1 inherit; font-family: inherit; letter-spacing: .8px; text-transform: uppercase;
   -webkit-tap-highlight-color: transparent;
 }
-
 .nav button[aria-selected="true"] { color: var(--tab-on); font-weight: 900; }
 .ind { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(100% / 8); padding: 0 12px; transition: transform .25s ease; pointer-events: none; }
 .ind::after { content: ""; display: block; height: 100%; background: var(--accent); border-radius: 4px 4px 0 0; }
@@ -80,6 +77,9 @@ main { max-width: 560px; margin: 0 auto; padding: 16px; }
 .dyn { display: flex; flex-direction: column; gap: 12px; }
 .row2 { display: flex; gap: 8px; }
 .row2 > .nf { flex: 1; }
+.row3 { display: flex; gap: 8px; justify-content: space-between; align-items: flex-start; }
+.row3 > .nf.sm { flex: 1; min-width: 0; }
+.nf.sm .nfrow input { width: 64px; padding: 0 4px; }
 .rowc { display: flex; justify-content: center; }
 .nf { display: flex; flex-direction: column; align-items: center; }
 .nf > label { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 4px; white-space: nowrap; }
@@ -103,11 +103,13 @@ main { max-width: 560px; margin: 0 auto; padding: 16px; }
   border: 2px solid color-mix(in srgb, var(--c) 90%, transparent);
   box-shadow: 0 0 16px color-mix(in srgb, var(--c) 22%, transparent); }
 .rbox .rbl { font-size: 11px; font-weight: 900; letter-spacing: 1.5px; color: var(--c); text-align: center; }
+.rbox .rbs { font-size: 13px; font-weight: 700; color: var(--c); opacity: .85; margin-top: 2px; }
 .rbox .rbv { font-size: clamp(24px, 8vw, 30px); font-weight: 900; letter-spacing: 1px; color: var(--c); white-space: nowrap; }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .rc { background: var(--tile); border-radius: 12px; padding: 8px 10px; min-width: 0; }
 .rl { font-size: 14px; font-weight: 600; letter-spacing: .5px; opacity: .88; }
 .rv { display: flex; align-items: center; gap: 4px; font-size: 18px; font-weight: 700; white-space: nowrap; }
+.rs { font-size: 12px; color: var(--label); white-space: nowrap; margin-top: 1px; }
 .ru { font-size: 12px; font-weight: 400; color: var(--label); margin-left: -1px; }
 .rr { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .rrl { font-size: 16px; font-weight: 600; opacity: .88; }
@@ -140,6 +142,7 @@ main { max-width: 560px; margin: 0 auto; padding: 16px; }
 .pa { text-align: right; display: flex; flex-direction: column; }
 .pa b { font-size: 18px; font-weight: 900; color: var(--accent); }
 .pa span { font-size: 14px; font-weight: 700; color: var(--result); }
+.pm { display: block; font-size: 12px; font-weight: 500; color: var(--label); margin-top: 1px; }
 .prow.off .pl, .prow.off .pa b, .prow.off .pa span { color: var(--label); font-weight: 500; }
 .hl { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid var(--card-b); }
 .hl:first-child { border-top: 0; }
@@ -163,7 +166,7 @@ function lsGet(k) { try { return localStorage.getItem(KEY + k) || ''; } catch (e
 function lsSet(k, v) { try { localStorage.setItem(KEY + k, v); } catch (e) {} }
 var NAMES = ['prof','dilO2','dilHe','boO2','boHe','trO2','trHe','swt','decoO2','injO2','injHe','tgO2','tgHe','c1','c2','heli',
              'gBo2','gBhe','gBbar','gTo2','gThe','gTbar','gTxO2','gTxHe','gNxO2','gNxHe','gHpO2','gHpHe','gAirO2','gAirHe','gHeli','gTxOn','gNxOn','gHpOn','gO2On',
-             'sProf','sConso','sTpsp','sCs','sTpsr','sVol','sDist','sPb','sVolR','sCsR','sPbR','boPea','boDens','dPpo2','dDens','dPea','decoSrc','swO2','swHe','trSrc','dilSrc','decoSel','boSrc'];
+             'sProf','sConso','sTpsp','sCs','sTpsr','sVol','sDist','sPb','sVolR','sCsR','sPbR','cOo','cOh','cOp','cTo','cTh','cTp','boPea','boDens','dPpo2','dDens','dPea','decoSrc','swO2','swHe','trSrc','dilSrc','decoSel','boSrc'];
 var S = {};
 NAMES.forEach(function (n) { S[n] = lsGet(n); });
 if (S.boPea === '') S.boPea = '30';     // réglages du bailout proposé (valeurs par défaut)
@@ -510,10 +513,10 @@ function gfCompute(i) {
   var t1 = sol.T1 || 0, t2 = sol.T2 || 0, air = sol.A || 0, o2Pure = sol.X || 0, hePure = sol.H || 0;
   var purge = { max: phi === null ? B : phi, purge: B - p0, after: p0 };
 
-  var steps = [{ kind: 'start', add: 0, total: p0 }], total = p0, pO = p0 * b.o2, pH = p0 * b.he, pN = p0 * b.n2;
+  var steps = [{ kind: 'start', add: 0, total: p0, o: p0 * b.o2, h: p0 * b.he }], total = p0, pO = p0 * b.o2, pH = p0 * b.he, pN = p0 * b.n2;
   [['o2', o2Pure, gas(1, 0)], ['he', hePure, i.he], ['trimix', t1, i.t1], ['nitrox', t2, i.t2], ['air', air, i.air]].forEach(function (s) {
     total += s[1]; pO += s[1] * s[2].o2; pH += s[1] * s[2].he; pN += s[1] * s[2].n2;
-    steps.push({ kind: s[0], add: s[1], total: total });
+    steps.push({ kind: s[0], add: s[1], total: total, o: pO, h: pH });
   });
   var fin = total > 0 ? { o2: pO / total, he: pH / total, n2: pN / total } : null;
   var dev = fin ? { o2: fin.o2 - i.target.o2, he: fin.he - i.target.he } : null;
@@ -547,16 +550,16 @@ function alertB(text, s) {
   var c = s === 'warn' ? 'var(--warn)' : 'var(--danger)';
   return '<div class="alert" role="alert" style="--c:' + c + '">' + ico(22) + '<span>' + text + '</span></div>';
 }
-function resultBox(value, color, label) {
-  return '<div class="rbox" style="--c:' + color + '">' + (label ? '<div class="rbl">' + label + '</div>' : '') + '<div class="rbv">' + value + '</div></div>';
+function resultBox(value, color, label, sub) {
+  return '<div class="rbox" style="--c:' + color + '">' + (label ? '<div class="rbl">' + label + '</div>' : '') + '<div class="rbv">' + value + '</div>' + (sub ? '<div class="rbs">' + sub + '</div>' : '') + '</div>';
 }
 function mixHead(o2, he, color, label) { return resultBox('TX ' + o2 + ' / ' + he, color, label); }
-function cell(label, value, unit, s) {
+function cell(label, value, unit, s, sub) {
   s = s || 'ok'; var empty = value === '--';
   return '<div class="rc"><div class="rl">' + label + '</div><div class="rv" style="color:' + (empty ? 'var(--label)' : stColor(s)) + '">' +
-    (s !== 'ok' ? ico(16) : '') + '<span>' + value + '</span>' + ((!empty && unit) ? '<span class="ru">' + unit.trim() + '</span>' : '') + '</div></div>';
+    (s !== 'ok' ? ico(16) : '') + '<span>' + value + '</span>' + ((!empty && unit) ? '<span class="ru">' + unit.trim() + '</span>' : '') + '</div>' + (sub ? '<div class="rs">' + sub + '</div>' : '') + '</div>';
 }
-function pair(l1, v1, u1, s1, l2, v2, u2, s2) { return '<div class="pair">' + cell(l1, v1, u1, s1) + cell(l2, v2, u2, s2) + '</div>'; }
+function pair(l1, v1, u1, s1, l2, v2, u2, s2, sub1, sub2) { return '<div class="pair">' + cell(l1, v1, u1, s1, sub1) + cell(l2, v2, u2, s2, sub2) + '</div>'; }
 function rrow(label, value, unit, s) {
   s = s || 'ok'; var empty = value === '--';
   return '<div class="rr"><span class="rrl">' + label + '</span><span class="rrv" style="color:' + (empty ? 'var(--label)' : stColor(s)) + '">' +
@@ -600,6 +603,7 @@ function field(key, label, o) {
   function curMax() { return typeof maxOpt === 'function' ? maxOpt() : maxOpt; }          // max éventuellement dynamique
   var wrap = h('div', 'nf'); wrap.style.setProperty('--fc', o.color || 'var(--text)');
   if (o.w) wrap.style.width = o.w + 'px';
+  if (o.small) wrap.classList.add('sm');          // champ compact (sans boutons) pour tenir à 3 sur une ligne
   var lab = h('label'); lab.textContent = label; wrap.appendChild(lab);
   var row = h('div', 'nfrow');
   var input = document.createElement('input');
@@ -630,7 +634,9 @@ function field(key, label, o) {
   minus.setAttribute('aria-label', 'Diminuer ' + label); plus.setAttribute('aria-label', 'Augmenter ' + label);
   minus.addEventListener('click', function () { change(-step); });
   plus.addEventListener('click', function () { change(step); });
-  row.appendChild(minus); row.appendChild(input); row.appendChild(plus);
+  if (!o.nostep) row.appendChild(minus);
+  row.appendChild(input);
+  if (!o.nostep) row.appendChild(plus);          // nostep : champ sans boutons − / +
   wrap.appendChild(row);
   FIELDS[key] = { input: input };
   return wrap;
@@ -827,7 +833,7 @@ function gfGasBlock(card, id, title, o2Key, heKey, onKey) {     // un gaz dispo 
   D.gfBloc = c1.dyn();
   var c2 = newCard(p, 'Cible', 'var(--accent)');
   c2.add(frow('row2', field('gTo2', 'O₂ %'), field('gThe', 'He %')));
-  c2.add(frow('rowc', field('gTbar', 'Pression (bar)', { step: 10, max: 400, w: 200 })));
+  c2.add(frow('rowc', field('gTbar', 'Pression (bar)', { step: 1, max: 400, w: 200 })));
   D.gfCible = c2.dyn();
   var c3 = newCard(p, 'Gaz disponibles', 'var(--violet)');
   gfGasBlock(c3, 'gfTx', 'Trimix dispo', 'gTxO2', 'gTxHe', 'gTxOn');
@@ -841,6 +847,14 @@ function gfGasBlock(card, id, title, o2Key, heKey, onKey) {     // un gaz dispo 
   GF.cPurge = newCard(p, 'Purge', 'var(--warn)'); D.gfPurge = GF.cPurge.dyn();
   GF.cPlan = newCard(p, 'Plan de gonflage', 'var(--result)'); D.gfPlan = GF.cPlan.dyn();
   GF.cUnique = newCard(p, 'Trimix unique', 'var(--violet)'); D.gfUnique = GF.cUnique.dyn();
+  var cc = newCard(p, 'Mélange Complément', 'var(--accent)');
+  function ccTitle(t) { var d = h('div', 'gb-h'), s = h('span'); s.textContent = t; d.appendChild(s); return d; }
+  cc.add(ccTitle('Old Mix'));
+  cc.add(frow('row3', field('cOo', 'O₂ %', { nostep: true, small: true }), field('cOh', 'He %', { nostep: true, small: true }), field('cOp', 'bar', { step: 1, max: 400 })));
+  cc.add(ccTitle('Top up with'));
+  cc.add(frow('row3', field('cTo', 'O₂ %', { nostep: true, small: true }), field('cTh', 'He %', { nostep: true, small: true }), field('cTp', 'bar', { step: 1, max: 400 })));
+  cc.add(h('div', 'hint sm', 'La pression « Top up with » est la pression finale du bloc.'));
+  D.gfTop = cc.dyn();
 })();
 
 /* ── Héliair ── */
@@ -1124,6 +1138,7 @@ function update() {
       sTpsr = nz(dec(S.sTpsr)), sVol = nz(dec(S.sVol)), sDist = nz(dec(S.sDist)), sPb = nz(dec(S.sPb)),
       sVolRShown = capText(S.sVolR, sVol / 2), sVolR = nz(dec(sVolRShown)), csRin = nz(dec(S.sCsR)), sPbR = nz(dec(S.sPbR));
   if (FIELDS.sVolR && FIELDS.sVolR.input.value !== sVolRShown && document.activeElement !== FIELDS.sVolR.input) FIELDS.sVolR.input.value = sVolRShown;   // affichage plafonné (la saisie reste mémorisée)
+  var turnNote = sTpsr > 0 ? '+ ' + (sTpsr % 1 === 0 ? String(sTpsr) : f(sTpsr, 1)) + ' mn demi-tour' : '';   // rappel du demi-tour sous le temps
   var sPabs = sProf / 10 + 1, relay = sVolR > 0 && csRin > 0, cs2 = csRin;          // Vol 2 ou Coef 2 = 0 ou vide : pas de relais
   function usable(v, c, turn) { var d = sPabs * sConso * c; return (v > 0 && d > 0) ? v / d - turn : null; }   // demi-tour : seulement pour le Vol 1 (le relais est utilisé en premier)
   /* 1) volumes connus : temps et distance (somme des deux blocs si relais) */
@@ -1133,7 +1148,7 @@ function update() {
   var notPos = (tpsPlg != null && tpsPlg <= 0) || (time1 != null && sVol > 0 && time1 <= 0) || (time2 != null && time2 <= 0);
   D.sout1.innerHTML = hintC('pre', 'Les volumes sont calculés pour l\'aller-retour\n' + (relay ? 'Vol 2 renseigné : bloc relais pris en compte (Vol 2 ou Coef Sécu 2 = 0 ou vide : pas de relais).' : 'Vol 2 ou Coef Sécu 2 = 0 ou vide : pas de bloc relais.') + '\nVol 2 est limité à la moitié du Vol 1.') +
     (sVolR > 0 && csRin <= 0 ? hint('Coef Sécu 2 = 0 ou vide : le relais n\'est pas pris en compte.') : '') +
-    pair('Tps de Plg aller', fo(tpsPlg, 2), ' mn', notPos ? 'danger' : 'ok', 'Distance aller', fo(dist, 2), ' m', 'ok') +
+    pair('Tps de Plg aller', fo(tpsPlg, 2), ' mn', notPos ? 'danger' : 'ok', 'Distance aller', fo(dist, 2), ' m', 'ok', tpsPlg != null ? turnNote : '') +
     ((relay && sVol > 0 && time1 != null && time2 != null) ?
       '<div class="hint ok" style="font-size:15px">Bloc 1 : ' + f(time1, 2) + ' mn · ' + f(sTpsp * time1, 0) + ' m\nBloc 2 : ' + f(time2, 2) + ' mn · ' + f(sTpsp * time2, 0) + ' m</div>' : '');
   /* 2) distance aller connue : le relais couvre sa part, les blocs 1 le reste */
@@ -1146,7 +1161,7 @@ function update() {
   D.sout2.innerHTML = (relay ? hintC('pre', 'Le bloc relais (VOL 2, Coef 2) couvre sa part de la distance \n les blocs 1 (Coef 1) couvrent le reste.\nLes volumes sont calculés pour l\'aller-retour') : '') +
     pair('Vol bloc 1', fo(vol1N, 0), ' l', 'ok', 'Dist bloc 1', fo(d1N, 0), ' m', 'ok') +
     (relay ? pair('Vol bloc 2', fo(vol2N, 0), ' l', 'ok', 'Dist bloc 2', fo(d2N, 0), ' m', 'ok') : '') +
-    resultBox(tpsPlg2 != null ? f(tpsPlg2, 2) + ' mn' : '--', 'var(--result)', 'TPS DE PLG ALLER') +
+    resultBox(tpsPlg2 != null ? f(tpsPlg2, 2) + ' mn' : '--', 'var(--result)', 'TPS DE PLG ALLER', tpsPlg2 != null ? turnNote : '') +
     ((relay && b1t != null && b1t <= 0) ? hint('Le bloc relais couvre toute la distance.') : '');
   /* 3) type de bloc : 2 blocs pour le volume 1, un seul pour le volume 2 */
   var type1 = (vol1N != null && vol1N > 0 && sPb > 0) ? vol1N / sPb / 2 : null;
@@ -1165,9 +1180,9 @@ function gfBar(v) { return Math.abs(v) < 0.05 ? '0' : f(v, 1); }
 function gfName(o2Pct, hePct) { return prefix(hePct) + ' ' + f(o2Pct, 1) + ' / ' + f(hePct, 1); }
 function gfSigned(v) { return (v < 0 ? '−' : '+') + f(Math.abs(v), 1); }
 function gfN2Row(g) { return rrow('N₂', f(g.n2 * 100, 1), ' %', g.n2 < -1e-9 ? 'danger' : 'ok'); }
-function gfPlanRow(n, label, add, total, active) {
+function gfPlanRow(n, label, add, total, active, mix) {
   return '<div class="prow' + (active ? '' : ' off') + '"><span class="pn">' + n + '</span><span class="pl">' + label +
-    '</span><span class="pa"><b>' + (n === 0 ? 'départ' : '+ ' + gfBar(add) + ' bar') + '</b><span>→ ' + gfBar(total) + ' bar</span></span></div>';
+    (mix ? '<span class="pm">Mélange : ' + mix + '</span>' : '') + '</span><span class="pa"><b>' + (n === 0 ? 'départ' : '+ ' + gfBar(add) + ' bar') + '</b><span>→ ' + gfBar(total) + ' bar</span></span></div>';
 }
 function gfUpdate() {
   var bloc = gfMix('gBo2', 'gBhe'), cible = gfMix('gTo2', 'gThe'), tx = gfMix('gTxO2', 'gTxHe'), nx = gfMix('gNxO2', 'gNxHe'),
@@ -1177,6 +1192,18 @@ function gfUpdate() {
   D.gfCible.innerHTML = gfN2Row(cible) + (cible.o2 > 0 && gValid(cible) ? resultBox(gfName(cible.o2 * 100, cible.he * 100), 'var(--accent)', 'MÉLANGE VISÉ') : '');
   D.gfTx.innerHTML = gfN2Row(tx); D.gfNx.innerHTML = gfN2Row(nx); D.gfHp.innerHTML = gfN2Row(hp); D.gfAir.innerHTML = gfN2Row(air);
   GF.gfTx.style.display = avT ? '' : 'none'; GF.gfNx.style.display = avN ? '' : 'none'; GF.gfHp.style.display = avH ? '' : 'none';
+
+  /* Mélange Complément : Old Mix + Top up with → pression ajoutée et nouveau mélange */
+  var oldM = gfMix('cOo', 'cOh'), topM = gfMix('cTo', 'cTh'), cp1 = gfNum('cOp'), cp2 = gfNum('cTp');
+  if (!gValid(oldM)) D.gfTop.innerHTML = alertB('Old Mix : O₂ + He dépasse 100 %');
+  else if (!gValid(topM)) D.gfTop.innerHTML = alertB('Top up with : O₂ + He dépasse 100 %');
+  else if (cp2 <= 0) D.gfTop.innerHTML = hint('Renseigne les pressions pour calculer.');
+  else if (cp2 <= cp1) D.gfTop.innerHTML = alertB('La pression « Top up with » doit être supérieure à celle de « Old Mix »');
+  else {
+    var cAdd = cp2 - cp1;
+    D.gfTop.innerHTML = rrow('Top up', f(cAdd, 1), ' bar') +
+      resultBox(gfName((cp1 * oldM.o2 + cAdd * topM.o2) / cp2 * 100, (cp1 * oldM.he + cAdd * topM.he) / cp2 * 100), 'var(--accent)', 'NEW MIX · ' + gfBar(cp2) + ' BAR');
+  }
 
   var probs = [];
   if (!gValid(bloc)) probs.push('Bloc actuel : O₂ + He dépasse 100 %');
@@ -1210,7 +1237,8 @@ function gfUpdate() {
     if ((s.kind === 'trimix' && !avT) || (s.kind === 'nitrox' && !avN) || (s.kind === 'he' && !avH) || (s.kind === 'o2' && !avO)) return;
     var label = { start: 'Bloc après purge', o2: 'Oxygène pur', he: 'Hélium pur', trimix: 'Trimix dispo  ' + gfName(tx.o2 * 100, tx.he * 100),
                   nitrox: 'Nitrox / Trimix 2  ' + gfName(nx.o2 * 100, nx.he * 100), air: 'Air' }[s.kind];
-    rows += gfPlanRow(n, label, s.add, s.total, s.kind === 'start' || Math.abs(s.add) >= 0.05); n++;
+    var act = s.kind === 'start' || Math.abs(s.add) >= 0.05;
+    rows += gfPlanRow(n, label, s.add, s.total, act, (act && s.total > 0) ? gfName(s.o / s.total * 100, s.h / s.total * 100) : ''); n++;   // mélange obtenu après cet ajout
   });
   html += '<div>' + rows + '</div>';
   if (r.fin) {
@@ -1244,13 +1272,15 @@ function gfUpdate() {
   if (row.status !== 'ok') {
     D.heChoice.innerHTML = alertB(GF_HE_TXT[row.status], 'warn');
   } else {
-    var hrows = [['Bloc après purge', 0, hl.start, true]];
-    if (avO) hrows.push(['Oxygène pur', hl.o2Pure, hl.start + hl.o2Pure, hl.o2Pure >= 0.05]);
-    if (avH) hrows.push(['Hélium pur', row.hePure, row.before, row.hePure >= 0.05]);
-    hrows.push(['Héliair  ' + gfName(row.o2, row.he), row.bars, row.before + row.bars, true]);
+    var acc = { t: hl.start, o: hl.start * bloc.o2, h: hl.start * bloc.he };
+    function accMix(bar, g) { acc.t += bar; acc.o += bar * g.o2; acc.h += bar * g.he; return acc.t > 0 ? gfName(acc.o / acc.t * 100, acc.h / acc.t * 100) : ''; }
+    var hrows = [['Bloc après purge', 0, hl.start, true, gfName(bloc.o2 * 100, bloc.he * 100)]];
+    if (avO) hrows.push(['Oxygène pur', hl.o2Pure, hl.start + hl.o2Pure, hl.o2Pure >= 0.05, accMix(hl.o2Pure, gas(1, 0))]);
+    if (avH) hrows.push(['Hélium pur', row.hePure, row.before, row.hePure >= 0.05, accMix(row.hePure, hp)]);
+    hrows.push(['Héliair  ' + gfName(row.o2, row.he), row.bars, row.before + row.bars, true, accMix(row.bars, gas(row.o2 / 100, row.he / 100))]);
     D.heChoice.innerHTML = (avH ? '' : hint('Hélium pur désactivé : tout l\'hélium passe par l\'héliair.')) +
       resultBox(gfName(row.o2, row.he), 'var(--violet)', 'HÉLIAIR À RÉGLER') + '<div>' +
-      hrows.map(function (q, idx) { return gfPlanRow(idx, q[0], q[1], q[2], q[3]); }).join('') + '</div>';
+      hrows.map(function (q, idx) { return gfPlanRow(idx, q[0], q[1], q[2], q[3], q[3] ? q[4] : ''); }).join('') + '</div>';
   }
   if (avH) D.heTable.innerHTML = hint('O₂ % rond à régler sur le compresseur. Plus l\'héliair est riche en O₂, plus tu mets d\'hélium pur avant.') +
     '<div>' + GF_PRESETS.map(function (o) {
